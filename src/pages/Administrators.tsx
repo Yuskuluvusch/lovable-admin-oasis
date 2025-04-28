@@ -107,16 +107,21 @@ const Administrators = () => {
       
       console.log("Creating new admin with email:", newAdmin.email);
       
-      // 1. Create the auth user using the admin client with proper service role
-      const { data: authData, error: authError } = await adminAuthClient.auth.admin.createUser({
+      // 1. Create the auth user using the admin client with service role key
+      const createUserResponse = await adminAuthClient.auth.admin.createUser({
         email: newAdmin.email,
         password: newAdmin.password,
         email_confirm: true
       });
 
+      const authData = createUserResponse.data;
+      const authError = createUserResponse.error;
+
+      console.log("Auth response:", createUserResponse);
+      
       if (authError) {
         console.error("Auth error:", authError);
-        throw authError;
+        throw new Error(`Error de autenticación: ${authError.message}`);
       }
 
       if (!authData?.user) {
