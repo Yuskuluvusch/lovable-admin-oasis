@@ -55,16 +55,19 @@ const PublicTerritory = () => {
           return;
         }
 
+        const territory = data.territory as { name: string; google_maps_link: string | null };
+        const publisher = data.publisher as { name: string };
+        
         const isExpired =
           !data.expires_at ||
           new Date(data.expires_at) < new Date() ||
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territory.name,
-          google_maps_link: data.territory.google_maps_link,
+          territory_name: territory.name,
+          google_maps_link: territory.google_maps_link,
           expires_at: data.expires_at,
-          publisher_name: data.publisher.name,
+          publisher_name: publisher.name,
           is_expired: isExpired,
         });
 

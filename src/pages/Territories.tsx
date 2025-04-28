@@ -156,7 +156,194 @@ const Territories = () => {
 
   return (
     <div className="space-y-6">
-      {/* Tu render de territorios y tabla, como ya tenías */}
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Territorios</h1>
+          <p className="text-muted-foreground">
+            Administra y asigna territorios a los publicadores.
+          </p>
+        </div>
+        <TerritoryConfigDialog />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="md:col-span-2">
+          <div className="flex flex-col sm:flex-row gap-2 items-end mb-4">
+            <div className="w-full sm:w-48">
+              <Label htmlFor="zone-filter">Filtrar por zona</Label>
+              <Select
+                value={selectedZone}
+                onValueChange={setSelectedZone}
+              >
+                <SelectTrigger id="zone-filter">
+                  <SelectValue placeholder="Todas las zonas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las zonas</SelectItem>
+                  {zones.map((zone) => (
+                    <SelectItem key={zone.id} value={zone.id}>{zone.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="border rounded-md overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Zona</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTerritories.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      No hay territorios disponibles
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredTerritories.map((territory) => {
+                    const assignment = getAssignment(territory.id);
+                    const isAssigned = !!assignment;
+                    const daysRemaining = isAssigned && assignment.expires_at ? getDaysRemaining(assignment.expires_at) : null;
+                    const isExpired = isAssigned && daysRemaining === 0;
+
+                    return (
+                      <TableRow key={territory.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <MapPin size={16} className="text-muted-foreground" />
+                            <span>{territory.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{territory.zone?.name || "Sin zona"}</TableCell>
+                        <TableCell>
+                          {isAssigned ? (
+                            <div className="flex flex-col">
+                              <span className={`text-sm ${isExpired ? "text-destructive" : "text-green-600"}`}>
+                                {isExpired ? "Expirado" : "Asignado"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {assignment.publisher?.name}
+                                {daysRemaining !== null && !isExpired && ` (${daysRemaining} días)`}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-amber-600">Disponible</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <EditTerritoryDialog territory={territory} zones={zones} onUpdate={fetchTerritories} />
+                            
+                            {!isAssigned ? (
+                              <AssignTerritoryDialog territory={territory} onAssign={fetchAll} />
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => copyPublicLink(assignment.token)}
+                                title="Copiar enlace"
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            )}
+                            
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Eliminar territorio?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Se eliminará el territorio permanentemente.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    onClick={() => handleDelete(territory.id)}
+                                  >
+                                    Eliminar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        <div className="border rounded-md p-4">
+          <h2 className="text-lg font-semibold mb-4">Nuevo Territorio</h2>
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="territory-name">Nombre</Label>
+              <Input
+                id="territory-name"
+                value={newTerritory.name}
+                onChange={(e) => setNewTerritory({ ...newTerritory, name: e.target.value })}
+                placeholder="Nombre del territorio"
+                disabled={isLoading}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="territory-zone">Zona (opcional)</Label>
+              <Select
+                value={newTerritory.zone_id}
+                onValueChange={(value) => setNewTerritory({ ...newTerritory, zone_id: value })}
+                disabled={isLoading}
+              >
+                <SelectTrigger id="territory-zone">
+                  <SelectValue placeholder="Seleccionar zona" />
+                </SelectTrigger>
+                <SelectContent>
+                  {zones.map((zone) => (
+                    <SelectItem key={zone.id} value={zone.id}>{zone.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="territory-google-maps">
+                Link de Google Maps (opcional)
+              </Label>
+              <Input
+                id="territory-google-maps"
+                value={newTerritory.google_maps_link}
+                onChange={(e) => setNewTerritory({ ...newTerritory, google_maps_link: e.target.value })}
+                placeholder="https://www.google.com/maps/..."
+                disabled={isLoading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Para compartir un mapa, ábrelo en Google Maps, haz clic en "Compartir" y copia el enlace de "Incorporar un mapa".
+              </p>
+            </div>
+            
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              <Plus className="mr-2 h-4 w-4" />
+              Crear Territorio
+            </Button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 };
