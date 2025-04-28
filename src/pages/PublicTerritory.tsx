@@ -163,19 +163,18 @@ const PublicTerritory = () => {
         )}
       </div>
 
-      {!territoryData.is_expired && territoryData.google_maps_link && (
-        <div className="flex-1">
-          <iframe
-            src={territoryData.google_maps_link}
-            width="100%"
-            height="100%"
-            style={{ border: 0, minHeight: "calc(100vh - 120px)" }}
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            title={`Mapa del territorio ${territoryData.territory_name}`}
-          />
-        </div>
+      <div style={{ height: "80vh" }} className="flex-1">
+  <iframe
+    src={territoryData.google_maps_link}
+    width="100%"
+    height="100%"
+    style={{ border: 0 }}
+    allowFullScreen
+    loading="lazy"
+    referrerPolicy="no-referrer-when-downgrade"
+    title={`Mapa del territorio ${territoryData.territory_name}`}
+  />
+</div>
       )}
     </div>
   );
