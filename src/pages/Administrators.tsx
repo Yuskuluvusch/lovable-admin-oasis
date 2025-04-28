@@ -40,6 +40,7 @@ interface Admin {
   name: string;
   email: string;
   role: string;
+  auth_id?: string;
 }
 
 const Administrators = () => {
@@ -47,9 +48,10 @@ const Administrators = () => {
   const { currentUser } = useAuth();
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
-  const [newAdmin, setNewAdmin] = useState<Partial<Admin>>({
+  const [newAdmin, setNewAdmin] = useState<Partial<Admin> & { password?: string }>({
     name: "",
     email: "",
+    password: "",
     role: "admin",
   });
   const [adminToDelete, setAdminToDelete] = useState<Admin | null>(null);
@@ -81,9 +83,24 @@ const Administrators = () => {
   };
 
   const handleCreateAdmin = async () => {
-    if (!newAdmin.name || !newAdmin.email) return;
+    if (!newAdmin.name || !newAdmin.email || !newAdmin.password) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Por favor complete todos los campos",
+      });
+      return;
+    }
 
     try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newAdmin.email,
+        password: newAdmin.password,
+      });
+
+      if (authError) throw authError;
+      if (!authData.user) throw new Error("No se pudo crear el usuario");
+
       const { data, error } = await supabase
         .from("administrators")
         .insert([
@@ -91,6 +108,7 @@ const Administrators = () => {
             name: newAdmin.name,
             email: newAdmin.email,
             role: "admin",
+            auth_id: authData.user.id,
           },
         ])
         .select()
@@ -99,7 +117,7 @@ const Administrators = () => {
       if (error) throw error;
 
       setAdmins([...admins, data]);
-      setNewAdmin({ name: "", email: "", role: "admin" });
+      setNewAdmin({ name: "", email: "", password: "", role: "admin" });
 
       toast({
         title: "Administrador creado",
@@ -162,12 +180,19 @@ const Administrators = () => {
     }
 
     try {
-      const { error } = await supabase
+      const { error: adminError } = await supabase
         .from("administrators")
         .delete()
         .eq("id", adminToDelete.id);
 
-      if (error) throw error;
+      if (adminError) throw adminError;
+
+      if (adminToDelete.auth_id) {
+        const { error: authError } = await supabase.auth.admin.deleteUser(
+          adminToDelete.auth_id
+        );
+        if (authError) throw authError;
+      }
 
       setAdmins(admins.filter((admin) => admin.id !== adminToDelete.id));
       toast({
@@ -233,11 +258,23 @@ const Administrators = () => {
                   }
                 />
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={newAdmin.password}
+                  onChange={(e) =>
+                    setNewAdmin({ ...newAdmin, password: e.target.value })
+                  }
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button
                 onClick={handleCreateAdmin}
-                disabled={!newAdmin.name || !newAdmin.email}
+                disabled={!newAdmin.name || !newAdmin.email || !newAdmin.password}
               >
                 Crear
               </Button>

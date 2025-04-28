@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       administrators: {
         Row: {
+          auth_id: string | null
           created_at: string
           email: string
           id: string
@@ -19,6 +20,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auth_id?: string | null
           created_at?: string
           email: string
           id?: string
@@ -27,6 +29,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auth_id?: string | null
           created_at?: string
           email?: string
           id?: string
