@@ -29,7 +29,6 @@ const PublicTerritory = () => {
       }
 
       try {
-        // Query assigned_territory by token and join with territories and publishers
         const { data, error: fetchError } = await supabase
           .from("assigned_territories")
           .select(`

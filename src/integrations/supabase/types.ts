@@ -43,31 +43,34 @@ export type Database = {
         Row: {
           assigned_at: string
           created_at: string
-          due_at: string | null
+          expires_at: string | null
           id: string
           publisher_id: string
           status: string | null
           territory_id: string
+          token: string
           updated_at: string
         }
         Insert: {
           assigned_at?: string
           created_at?: string
-          due_at?: string | null
+          expires_at?: string | null
           id?: string
           publisher_id: string
           status?: string | null
           territory_id: string
+          token?: string
           updated_at?: string
         }
         Update: {
           assigned_at?: string
           created_at?: string
-          due_at?: string | null
+          expires_at?: string | null
           id?: string
           publisher_id?: string
           status?: string | null
           territory_id?: string
+          token?: string
           updated_at?: string
         }
         Relationships: [

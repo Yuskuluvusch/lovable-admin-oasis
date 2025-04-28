@@ -23,6 +23,7 @@ export type TerritoryAssignment = {
   assigned_at: string;
   expires_at: string | null;
   status: string | null;
+  token: string;
   publisher?: {
     name: string;
   };
