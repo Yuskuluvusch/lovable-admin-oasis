@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, MapPin, Trash2, Copy } from "lucide-react";
+import { Plus, MapPin, Trash2, Copy, Unlink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -39,7 +39,7 @@ const Territories = () => {
         .from("territories")
         .select(`
           id, name, zone_id, google_maps_link, created_at, updated_at,
-          zone:zone_id(id, name)
+          zones(id, name)
         `)
         .order("name");
 
@@ -57,7 +57,7 @@ const Territories = () => {
         google_maps_link: item.google_maps_link,
         created_at: item.created_at,
         updated_at: item.updated_at,
-        zone: item.zone ? { id: item.zone.id, name: item.zone.name } : undefined,
+        zone: item.zones ? { id: item.zones.id, name: item.zones.name } : undefined,
       }));
 
       setTerritories(transformedData);
@@ -73,13 +73,13 @@ const Territories = () => {
         .from("assigned_territories")
         .select(`
           id, territory_id, publisher_id, assigned_at, expires_at, status, token,
-          publisher:publisher_id(name)
+          publishers!assigned_territories_publisher_id_fkey(name)
         `)
         .eq("status", "assigned");
 
       if (error) {
         toast.error("Error al cargar asignaciones");
-        console.error(error);
+        console.error("Error fetching assignments:", error);
         return;
       }
 
@@ -92,7 +92,7 @@ const Territories = () => {
         expires_at: item.expires_at,
         status: item.status,
         token: item.token,
-        publisher: item.publisher ? { name: item.publisher.name } : undefined,
+        publisher: item.publishers ? { name: item.publishers.name } : undefined,
       }));
 
       setAssignments(transformedData);
@@ -140,6 +140,22 @@ const Territories = () => {
       console.error(error);
     } else {
       toast.success("Territorio eliminado");
+      fetchAll();
+    }
+  };
+
+  // New function to unassign a territory from a publisher
+  const handleUnassignTerritory = async (assignmentId: string) => {
+    const { error } = await supabase
+      .from("assigned_territories")
+      .delete()
+      .eq("id", assignmentId);
+    
+    if (error) {
+      toast.error("Error al desasignar territorio");
+      console.error(error);
+    } else {
+      toast.success("Territorio desasignado correctamente");
       fetchAll();
     }
   };
@@ -243,14 +259,42 @@ const Territories = () => {
                             {!isAssigned ? (
                               <AssignTerritoryDialog territory={territory} onAssign={fetchAll} />
                             ) : (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => copyPublicLink(assignment.token)}
-                                title="Copiar enlace"
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => copyPublicLink(assignment.token)}
+                                  title="Copiar enlace"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-amber-600" title="Desasignar territorio">
+                                      <Unlink className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>¿Desasignar territorio?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        El territorio será desasignado del publicador {assignment.publisher?.name}. 
+                                        El territorio no será eliminado y quedará disponible para una nueva asignación.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        className="bg-amber-600 text-white hover:bg-amber-700"
+                                        onClick={() => handleUnassignTerritory(assignment.id)}
+                                      >
+                                        Desasignar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </>
                             )}
                             
                             <AlertDialog>

@@ -34,8 +34,8 @@ const PublicTerritory = () => {
           .from("assigned_territories")
           .select(`
             id, territory_id, publisher_id, expires_at, status, token,
-            territory:territory_id(name, google_maps_link),
-            publisher:publisher_id(name)
+            territories!assigned_territories_territory_id_fkey(name, google_maps_link),
+            publishers!assigned_territories_publisher_id_fkey(name)
           `)
           .eq("token", token)
           .single();
@@ -48,15 +48,15 @@ const PublicTerritory = () => {
         }
 
         // Check for data structure before accessing properties
-        if (!data.territory || !data.publisher) {
+        if (!data.territories || !data.publishers) {
           console.error("Missing territory or publisher data:", data);
           setError("Error en los datos del territorio.");
           setLoading(false);
           return;
         }
 
-        const territory = data.territory as { name: string; google_maps_link: string | null };
-        const publisher = data.publisher as { name: string };
+        const territory = data.territories;
+        const publisher = data.publishers;
         
         const isExpired =
           !data.expires_at ||
