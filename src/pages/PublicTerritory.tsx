@@ -29,45 +29,58 @@ const PublicTerritory = () => {
       }
 
       try {
-        // Using the correct syntax for joins with Supabase
-        const { data, error: fetchError } = await supabase
+        // First, fetch the assignment with the given token
+        const { data: assignmentData, error: assignmentError } = await supabase
           .from("assigned_territories")
-          .select(`
-            id, territory_id, publisher_id, expires_at, status, token,
-            territories!assigned_territories_territory_id_fkey(name, google_maps_link),
-            publishers!assigned_territories_publisher_id_fkey(name)
-          `)
+          .select("id, territory_id, publisher_id, expires_at, status, token")
           .eq("token", token)
           .single();
 
-        if (fetchError || !data) {
-          console.error("Error fetching territory data:", fetchError);
+        if (assignmentError || !assignmentData) {
+          console.error("Error fetching assignment data:", assignmentError);
           setError("Territorio no encontrado o enlace inválido.");
           setLoading(false);
           return;
         }
 
-        // Check for data structure before accessing properties
-        if (!data.territories || !data.publishers) {
-          console.error("Missing territory or publisher data:", data);
-          setError("Error en los datos del territorio.");
+        // Then fetch the territory and publisher details separately
+        const [territoryResult, publisherResult] = await Promise.all([
+          supabase
+            .from("territories")
+            .select("name, google_maps_link")
+            .eq("id", assignmentData.territory_id)
+            .single(),
+          supabase
+            .from("publishers")
+            .select("name")
+            .eq("id", assignmentData.publisher_id)
+            .single()
+        ]);
+
+        if (territoryResult.error || !territoryResult.data) {
+          console.error("Error fetching territory:", territoryResult.error);
+          setError("Error al cargar datos del territorio");
           setLoading(false);
           return;
         }
 
-        const territory = data.territories;
-        const publisher = data.publishers;
-        
+        if (publisherResult.error || !publisherResult.data) {
+          console.error("Error fetching publisher:", publisherResult.error);
+          setError("Error al cargar datos del publicador");
+          setLoading(false);
+          return;
+        }
+
         const isExpired =
-          !data.expires_at ||
-          new Date(data.expires_at) < new Date() ||
-          data.status !== "assigned";
+          !assignmentData.expires_at ||
+          new Date(assignmentData.expires_at) < new Date() ||
+          assignmentData.status !== "assigned";
 
         setTerritoryData({
-          territory_name: territory.name,
-          google_maps_link: territory.google_maps_link,
-          expires_at: data.expires_at,
-          publisher_name: publisher.name,
+          territory_name: territoryResult.data.name,
+          google_maps_link: territoryResult.data.google_maps_link,
+          expires_at: assignmentData.expires_at,
+          publisher_name: publisherResult.data.name,
           is_expired: isExpired,
         });
 

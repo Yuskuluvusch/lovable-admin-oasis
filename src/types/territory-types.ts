@@ -12,6 +12,7 @@ export type Territory = {
   created_at: string;
   updated_at: string;
   zone?: Zone;
+  last_assigned_at: string | null;
 };
 
 export type TerritoryAssignment = {

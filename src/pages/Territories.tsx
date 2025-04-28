@@ -1,19 +1,21 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, MapPin, Trash2, Copy, Unlink } from "lucide-react";
+import { Plus, MapPin, Trash2, Copy, Unlink, Calendar, ArrowUp, ArrowDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { differenceInDays } from "date-fns";
+import { differenceInDays, formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 import { Zone, Territory, TerritoryAssignment } from "../types/territory-types";
 import EditTerritoryDialog from "../components/territories/EditTerritoryDialog";
 import AssignTerritoryDialog from "../components/territories/AssignTerritoryDialog";
 import TerritoryConfigDialog from "../components/territories/TerritoryConfigDialog";
+
+type SortField = 'name' | 'zone' | 'status' | 'last_assigned_at';
 
 const Territories = () => {
   const [territories, setTerritories] = useState<Territory[]>([]);
@@ -22,6 +24,8 @@ const Territories = () => {
   const [selectedZone, setSelectedZone] = useState<string>("all");
   const [newTerritory, setNewTerritory] = useState({ name: "", zone_id: "", google_maps_link: "" });
   const [isLoading, setIsLoading] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const fetchZones = async () => {
     const { data, error } = await supabase.from("zones").select("id, name").order("name");
@@ -49,8 +53,7 @@ const Territories = () => {
         return;
       }
 
-      // Transform the data to match our Territory type
-      const transformedData = (data || []).map((item: any) => ({
+      const transformedTerritories = (data || []).map((item: any) => ({
         id: item.id,
         name: item.name,
         zone_id: item.zone_id,
@@ -58,9 +61,34 @@ const Territories = () => {
         created_at: item.created_at,
         updated_at: item.updated_at,
         zone: item.zones ? { id: item.zones.id, name: item.zones.name } : undefined,
+        last_assigned_at: null,
       }));
 
-      setTerritories(transformedData);
+      const { data: assignmentsHistory, error: assignmentsError } = await supabase
+        .from("assigned_territories")
+        .select("territory_id, assigned_at")
+        .order("assigned_at", { ascending: false });
+
+      if (assignmentsError) {
+        toast.error("Error al cargar historial de asignaciones");
+        console.error(assignmentsError);
+        setTerritories(transformedTerritories);
+        return;
+      }
+
+      const lastAssignmentMap = new Map<string, string>();
+      assignmentsHistory?.forEach(assignment => {
+        if (!lastAssignmentMap.has(assignment.territory_id)) {
+          lastAssignmentMap.set(assignment.territory_id, assignment.assigned_at);
+        }
+      });
+
+      const territoriesWithLastAssignment = transformedTerritories.map(territory => ({
+        ...territory,
+        last_assigned_at: lastAssignmentMap.get(territory.id) || null,
+      }));
+
+      setTerritories(territoriesWithLastAssignment);
     } catch (err) {
       console.error("Error in fetchTerritories:", err);
       toast.error("Error al cargar territorios");
@@ -73,7 +101,7 @@ const Territories = () => {
         .from("assigned_territories")
         .select(`
           id, territory_id, publisher_id, assigned_at, expires_at, status, token,
-          publishers!assigned_territories_publisher_id_fkey(name)
+          publishers(name)
         `)
         .eq("status", "assigned");
 
@@ -83,7 +111,6 @@ const Territories = () => {
         return;
       }
 
-      // Transform the data to match our TerritoryAssignment type
       const transformedData = (data || []).map((item: any) => ({
         id: item.id,
         territory_id: item.territory_id,
@@ -112,9 +139,60 @@ const Territories = () => {
     fetchAll();
   }, []);
 
+  const toggleSortDirection = () => {
+    setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+  };
+
+  const handleSortClick = (field: SortField) => {
+    if (sortField === field) {
+      toggleSortDirection();
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortTerritories = (territories: Territory[]) => {
+    return [...territories].sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'zone':
+          const zoneA = a.zone?.name || '';
+          const zoneB = b.zone?.name || '';
+          comparison = zoneA.localeCompare(zoneB);
+          break;
+        case 'last_assigned_at':
+          if (a.last_assigned_at === null && b.last_assigned_at === null) comparison = 0;
+          else if (a.last_assigned_at === null) comparison = 1;
+          else if (b.last_assigned_at === null) comparison = -1;
+          else comparison = (new Date(a.last_assigned_at)).getTime() - (new Date(b.last_assigned_at)).getTime();
+          break;
+        case 'status':
+          const isAssignedA = !!assignments.find(assignment => assignment.territory_id === a.id);
+          const isAssignedB = !!assignments.find(assignment => assignment.territory_id === b.id);
+          if (isAssignedA !== isAssignedB) {
+            return isAssignedA ? -1 : 1;
+          }
+          if (a.last_assigned_at === null && b.last_assigned_at === null) comparison = 0;
+          else if (a.last_assigned_at === null) comparison = 1;
+          else if (b.last_assigned_at === null) comparison = -1;
+          else comparison = (new Date(a.last_assigned_at)).getTime() - (new Date(b.last_assigned_at)).getTime();
+          break;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  };
+
   const filteredTerritories = selectedZone === "all"
     ? territories
     : territories.filter((t) => t.zone_id === selectedZone);
+
+  const sortedTerritories = sortTerritories(filteredTerritories);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,7 +222,6 @@ const Territories = () => {
     }
   };
 
-  // New function to unassign a territory from a publisher
   const handleUnassignTerritory = async (assignmentId: string) => {
     const { error } = await supabase
       .from("assigned_territories")
@@ -168,6 +245,18 @@ const Territories = () => {
     const link = `${window.location.origin}/territorio/${token}`;
     navigator.clipboard.writeText(link);
     toast.success("Enlace copiado al portapapeles");
+  };
+
+  const formatLastAssigned = (date: string | null) => {
+    if (!date) return "Nunca asignado";
+    return formatDistanceToNow(new Date(date), { addSuffix: true, locale: es });
+  };
+
+  const isLongUnassigned = (territory: Territory) => {
+    if (getAssignment(territory.id)) return false;
+    if (!territory.last_assigned_at) return true;
+    const daysUnassigned = differenceInDays(new Date(), new Date(territory.last_assigned_at));
+    return daysUnassigned > 90; 
   };
 
   return (
@@ -202,34 +291,73 @@ const Territories = () => {
                 </SelectContent>
               </Select>
             </div>
+            
+            <div className="w-full sm:w-48">
+              <Label htmlFor="sort-territories">Ordenar por</Label>
+              <Select
+                value={sortField}
+                onValueChange={(value) => handleSortClick(value as SortField)}
+              >
+                <SelectTrigger id="sort-territories" className="flex justify-between items-center">
+                  <SelectValue placeholder="Ordenar por" />
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); toggleSortDirection(); }} className="ml-2 h-5 w-5">
+                    {sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+                  </Button>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Nombre</SelectItem>
+                  <SelectItem value="zone">Zona</SelectItem>
+                  <SelectItem value="status">Estado</SelectItem>
+                  <SelectItem value="last_assigned_at">Última asignación</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="border rounded-md overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Zona</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSortClick('name')}>
+                    Nombre {sortField === 'name' && (
+                      sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
+                    )}
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSortClick('zone')}>
+                    Zona {sortField === 'zone' && (
+                      sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
+                    )}
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSortClick('status')}>
+                    Estado {sortField === 'status' && (
+                      sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
+                    )}
+                  </TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSortClick('last_assigned_at')}>
+                    Última asignación {sortField === 'last_assigned_at' && (
+                      sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
+                    )}
+                  </TableHead>
                   <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTerritories.length === 0 ? (
+                {sortedTerritories.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       No hay territorios disponibles
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredTerritories.map((territory) => {
+                  sortedTerritories.map((territory) => {
                     const assignment = getAssignment(territory.id);
                     const isAssigned = !!assignment;
                     const daysRemaining = isAssigned && assignment.expires_at ? getDaysRemaining(assignment.expires_at) : null;
                     const isExpired = isAssigned && daysRemaining === 0;
+                    const longUnassigned = !isAssigned && isLongUnassigned(territory);
 
                     return (
-                      <TableRow key={territory.id}>
+                      <TableRow key={territory.id} className={longUnassigned ? "bg-amber-50" : ""}>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <MapPin size={16} className="text-muted-foreground" />
@@ -251,6 +379,14 @@ const Territories = () => {
                           ) : (
                             <span className="text-sm text-amber-600">Disponible</span>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span className={`text-xs ${longUnassigned ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+                              {formatLastAssigned(territory.last_assigned_at)}
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
