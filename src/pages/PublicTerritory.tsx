@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,14 +29,28 @@ const PublicTerritory = () => {
       }
 
       try {
+        // Using the correct syntax for joins with Supabase
         const { data, error: fetchError } = await supabase
           .from("assigned_territories")
-          .select("id, territory_id, publisher_id, expires_at, status, territory:territory_id(name, google_maps_link), publisher:publisher_id(name)")
+          .select(`
+            id, territory_id, publisher_id, expires_at, status, token,
+            territory:territory_id(name, google_maps_link),
+            publisher:publisher_id(name)
+          `)
           .eq("token", token)
           .single();
 
         if (fetchError || !data) {
+          console.error("Error fetching territory data:", fetchError);
           setError("Territorio no encontrado o enlace inválido.");
+          setLoading(false);
+          return;
+        }
+
+        // Check for data structure before accessing properties
+        if (!data.territory || !data.publisher) {
+          console.error("Missing territory or publisher data:", data);
+          setError("Error en los datos del territorio.");
           setLoading(false);
           return;
         }
@@ -46,10 +61,10 @@ const PublicTerritory = () => {
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territory?.name || "Nombre no disponible",
-          google_maps_link: data.territory?.google_maps_link || null,
+          territory_name: data.territory.name,
+          google_maps_link: data.territory.google_maps_link,
           expires_at: data.expires_at,
-          publisher_name: data.publisher?.name || "Publicador desconocido",
+          publisher_name: data.publisher.name,
           is_expired: isExpired,
         });
 
@@ -118,6 +133,7 @@ const PublicTerritory = () => {
       <div className="container py-4">
         <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-2">
           <h1 className="text-xl font-semibold">Territorio: {territoryData.territory_name}</h1>
+          
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Info className="h-4 w-4" />
             <span>Asignado a: <span className="font-medium">{territoryData.publisher_name}</span></span>
@@ -137,7 +153,9 @@ const PublicTerritory = () => {
           <Alert className={`${daysRemaining < 7 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-green-500 bg-green-50 text-green-800"} mb-4`}>
             <Calendar className="h-4 w-4" />
             <AlertTitle>
-              {daysRemaining === 0 ? "¡El territorio vence hoy!" : `Faltan ${daysRemaining} días para el vencimiento`}
+              {daysRemaining === 0 
+                ? "¡El territorio vence hoy!" 
+                : `Faltan ${daysRemaining} días para el vencimiento`}
             </AlertTitle>
           </Alert>
         )}
@@ -154,7 +172,7 @@ const PublicTerritory = () => {
       </div>
 
       {!territoryData.is_expired && territoryData.google_maps_link && (
-        <div className="w-full h-[80vh]">
+        <div className="flex-1" style={{ height: "80vh" }}>
           <iframe
             src={territoryData.google_maps_link}
             width="100%"

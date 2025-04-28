@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,44 +34,73 @@ const Territories = () => {
   };
 
   const fetchTerritories = async () => {
-    const { data, error } = await supabase
-      .from("territories")
-      .select("id, name, zone_id, google_maps_link, created_at, updated_at, zone:zone_id(id, name)")
-      .order("name");
+    try {
+      const { data, error } = await supabase
+        .from("territories")
+        .select(`
+          id, name, zone_id, google_maps_link, created_at, updated_at,
+          zone:zone_id(id, name)
+        `)
+        .order("name");
 
-    if (error) {
+      if (error) {
+        toast.error("Error al cargar territorios");
+        console.error(error);
+        return;
+      }
+
+      // Transform the data to match our Territory type
+      const transformedData = (data || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        zone_id: item.zone_id,
+        google_maps_link: item.google_maps_link,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        zone: item.zone ? { id: item.zone.id, name: item.zone.name } : undefined,
+      }));
+
+      setTerritories(transformedData);
+    } catch (err) {
+      console.error("Error in fetchTerritories:", err);
       toast.error("Error al cargar territorios");
-      console.error(error);
-      return;
     }
-
-    setTerritories((data || []).map((item: any) => ({
-      id: item.id,
-      name: item.name,
-      zone_id: item.zone_id,
-      google_maps_link: item.google_maps_link,
-      created_at: item.created_at,
-      updated_at: item.updated_at,
-      zone: item.zone ? { id: item.zone.id, name: item.zone.name } : undefined,
-    })));
   };
 
   const fetchAssignments = async () => {
-  const { data, error } = await supabase
-    .from("assigned_territories")
-    .select("*")
-    .eq("status", "assigned");
+    try {
+      const { data, error } = await supabase
+        .from("assigned_territories")
+        .select(`
+          id, territory_id, publisher_id, assigned_at, expires_at, status, token,
+          publisher:publisher_id(name)
+        `)
+        .eq("status", "assigned");
 
-  if (error) {
-    toast.error("Error al cargar asignaciones");
-    console.error(error);
-    return;
-  }
+      if (error) {
+        toast.error("Error al cargar asignaciones");
+        console.error(error);
+        return;
+      }
 
-  setAssignments(data || []);
-};
+      // Transform the data to match our TerritoryAssignment type
+      const transformedData = (data || []).map((item: any) => ({
+        id: item.id,
+        territory_id: item.territory_id,
+        publisher_id: item.publisher_id,
+        assigned_at: item.assigned_at,
+        expires_at: item.expires_at,
+        status: item.status,
+        token: item.token,
+        publisher: item.publisher ? { name: item.publisher.name } : undefined,
+      }));
 
-    
+      setAssignments(transformedData);
+    } catch (err) {
+      console.error("Error in fetchAssignments:", err);
+      toast.error("Error al cargar asignaciones");
+    }
+  };
 
   const fetchAll = () => {
     fetchZones();

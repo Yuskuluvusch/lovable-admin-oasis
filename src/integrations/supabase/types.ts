@@ -109,6 +109,20 @@ export type Database = {
             referencedRelation: "territories"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_assigned_publisher"
+            columns: ["publisher_id"]
+            isOneToOne: false
+            referencedRelation: "publishers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_assigned_territory"
+            columns: ["territory_id"]
+            isOneToOne: false
+            referencedRelation: "territories"
+            referencedColumns: ["id"]
+          },
         ]
       }
       publisher_roles: {
