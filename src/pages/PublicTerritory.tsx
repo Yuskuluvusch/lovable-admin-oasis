@@ -175,7 +175,7 @@ const PublicTerritory = () => {
       </div>
 
       {!territoryData.is_expired && territoryData.google_maps_link && (
-        <div className="flex-1" style={{ height: "80vh" }}>
+        <div className="w-full h-[80vh]">
           <iframe
             src={territoryData.google_maps_link}
             width="100%"
