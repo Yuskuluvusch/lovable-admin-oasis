@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Calendar, Map, AlertTriangle, Info } from "lucide-react";
+import { Calendar, AlertTriangle, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const PublicTerritory = () => {
@@ -31,11 +30,7 @@ const PublicTerritory = () => {
       try {
         const { data, error: fetchError } = await supabase
           .from("assigned_territories")
-          .select(`
-            id, territory_id, publisher_id, expires_at, status,
-            territories(name, google_maps_link),
-            publishers(name)
-          `)
+          .select("id, territory_id, publisher_id, expires_at, status, territory:territory_id(name, google_maps_link), publisher:publisher_id(name)")
           .eq("token", token)
           .single();
 
@@ -45,21 +40,20 @@ const PublicTerritory = () => {
           return;
         }
 
-        const isExpired = 
-          !data.expires_at || 
-          new Date(data.expires_at) < new Date() || 
+        const isExpired =
+          !data.expires_at ||
+          new Date(data.expires_at) < new Date() ||
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territories.name,
-          google_maps_link: data.territories.google_maps_link,
+          territory_name: data.territory?.name || "Nombre no disponible",
+          google_maps_link: data.territory?.google_maps_link || null,
           expires_at: data.expires_at,
-          publisher_name: data.publishers.name,
-          is_expired: isExpired
+          publisher_name: data.publisher?.name || "Publicador desconocido",
+          is_expired: isExpired,
         });
 
         setLoading(false);
-
       } catch (err) {
         console.error("Error fetching territory:", err);
         setError("Error al cargar datos del territorio");
@@ -124,7 +118,6 @@ const PublicTerritory = () => {
       <div className="container py-4">
         <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-2">
           <h1 className="text-xl font-semibold">Territorio: {territoryData.territory_name}</h1>
-          
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Info className="h-4 w-4" />
             <span>Asignado a: <span className="font-medium">{territoryData.publisher_name}</span></span>
@@ -144,9 +137,7 @@ const PublicTerritory = () => {
           <Alert className={`${daysRemaining < 7 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-green-500 bg-green-50 text-green-800"} mb-4`}>
             <Calendar className="h-4 w-4" />
             <AlertTitle>
-              {daysRemaining === 0 
-                ? "¡El territorio vence hoy!" 
-                : `Faltan ${daysRemaining} días para el vencimiento`}
+              {daysRemaining === 0 ? "¡El territorio vence hoy!" : `Faltan ${daysRemaining} días para el vencimiento`}
             </AlertTitle>
           </Alert>
         )}
