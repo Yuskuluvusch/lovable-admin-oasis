@@ -25,7 +25,6 @@ const Zones = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchZones = async () => {
-    // Asegurarse de usar el from con la tabla correcta que ahora existe en la BD
     const { data, error } = await supabase
       .from("zones")
       .select("*")
@@ -49,7 +48,6 @@ const Zones = () => {
     if (!newZoneName.trim()) return;
 
     setIsLoading(true);
-    // Asegurarse de usar el from con la tabla correcta que ahora existe en la BD
     const { error } = await supabase
       .from("zones")
       .insert([{ name: newZoneName.trim() }]);

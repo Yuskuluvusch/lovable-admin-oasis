@@ -39,6 +39,54 @@ export type Database = {
         }
         Relationships: []
       }
+      assigned_territories: {
+        Row: {
+          assigned_at: string
+          created_at: string
+          due_at: string | null
+          id: string
+          publisher_id: string
+          status: string | null
+          territory_id: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          publisher_id: string
+          status?: string | null
+          territory_id: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          publisher_id?: string
+          status?: string | null
+          territory_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assigned_territories_publisher_id_fkey"
+            columns: ["publisher_id"]
+            isOneToOne: false
+            referencedRelation: "publishers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assigned_territories_territory_id_fkey"
+            columns: ["territory_id"]
+            isOneToOne: false
+            referencedRelation: "territories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       publisher_roles: {
         Row: {
           created_at: string
@@ -91,6 +139,62 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      territories: {
+        Row: {
+          created_at: string
+          google_maps_link: string | null
+          id: string
+          name: string
+          updated_at: string
+          zone_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          google_maps_link?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          zone_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          google_maps_link?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "territories_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zones: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {

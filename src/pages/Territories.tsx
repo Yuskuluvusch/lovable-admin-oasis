@@ -24,8 +24,8 @@ import { toast } from "sonner";
 interface Territory {
   id: string;
   name: string;
-  google_maps_link: string;
-  zone_id: string;
+  google_maps_link: string | null;
+  zone_id: string | null;
   zones?: {
     name: string;
   };
@@ -179,7 +179,7 @@ const Territories = () => {
                 <TableCell>{territory.zones?.name}</TableCell>
                 <TableCell>
                   <a 
-                    href={territory.google_maps_link} 
+                    href={territory.google_maps_link || '#'} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-blue-600 hover:underline"
