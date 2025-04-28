@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,13 +28,12 @@ const PublicTerritory = () => {
       }
 
       try {
-        // Consultar datos usando las relaciones establecidas por foreign keys
         const { data, error: fetchError } = await supabase
           .from("assigned_territories")
           .select(`
             id, territory_id, publisher_id, expires_at, status,
-            territories(name, google_maps_link),
-            publishers(name)
+            territory:territory_id(name, google_maps_link),
+            publisher:publisher_id(name)
           `)
           .eq("token", token)
           .single();
@@ -52,10 +50,10 @@ const PublicTerritory = () => {
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territories.name,
-          google_maps_link: data.territories.google_maps_link,
+          territory_name: data.territory.name,
+          google_maps_link: data.territory.google_maps_link,
           expires_at: data.expires_at,
-          publisher_name: data.publishers.name,
+          publisher_name: data.publisher.name,
           is_expired: isExpired
         });
 

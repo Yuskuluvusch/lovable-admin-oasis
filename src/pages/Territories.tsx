@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +42,7 @@ const Territories = () => {
         google_maps_link,
         created_at,
         updated_at,
-        zones(name)
+        zone:zone_id(id, name)
       `)
       .order("name");
     
@@ -53,52 +52,36 @@ const Territories = () => {
       return;
     }
     
-    const transformedData: Territory[] = (data || []).map(item => ({
-      id: item.id,
-      name: item.name,
-      zone_id: item.zone_id,
-      google_maps_link: item.google_maps_link,
-      created_at: item.created_at,
-      updated_at: item.updated_at,
-      zone: item.zones ? { name: item.zones.name } : undefined
-    }));
-    
-    setTerritories(transformedData);
+    setTerritories(data || []);
   };
 
   const fetchAssignments = async () => {
-    const { data, error } = await supabase
-      .from("assigned_territories")
-      .select(`
-        id,
-        territory_id,
-        publisher_id,
-        assigned_at,
-        expires_at,
-        status,
-        token,
-        publishers(name)
-      `)
-      .eq("status", "assigned");
-    
-    if (error) {
+    try {
+      const { data, error } = await supabase
+        .from("assigned_territories")
+        .select(`
+          id,
+          territory_id,
+          publisher_id,
+          assigned_at,
+          expires_at,
+          status,
+          token,
+          publisher:publisher_id(name)
+        `)
+        .eq("status", "assigned");
+      
+      if (error) {
+        toast.error("Error al cargar asignaciones");
+        console.error(error);
+        return;
+      }
+      
+      setAssignments(data || []);
+    } catch (err) {
+      console.error("Error en fetchAssignments:", err);
       toast.error("Error al cargar asignaciones");
-      console.error(error);
-      return;
     }
-    
-    const transformedData: TerritoryAssignment[] = (data || []).map(item => ({
-      id: item.id,
-      territory_id: item.territory_id,
-      publisher_id: item.publisher_id,
-      assigned_at: item.assigned_at,
-      expires_at: item.expires_at,
-      status: item.status,
-      token: item.token,
-      publisher: item.publishers ? { name: item.publishers.name } : undefined
-    }));
-    
-    setAssignments(transformedData);
   };
 
   const fetchAll = () => {

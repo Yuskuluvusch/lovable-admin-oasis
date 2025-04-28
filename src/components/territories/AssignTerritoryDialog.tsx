@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -79,25 +80,30 @@ const AssignTerritoryDialog: React.FC<AssignTerritoryDialogProps> = ({ territory
       "yyyy-MM-dd"
     );
 
-    const { error } = await supabase.from("assigned_territories").insert([
-      {
-        territory_id: territory.id,
-        publisher_id: selectedPublisherId,
-        expires_at: expiresAt,
-        status: "assigned",
-      },
-    ]);
+    try {
+      const { error } = await supabase.from("assigned_territories").insert([
+        {
+          territory_id: territory.id,
+          publisher_id: selectedPublisherId,
+          expires_at: expiresAt,
+          status: "assigned",
+        },
+      ]);
 
-    if (error) {
+      if (error) {
+        toast.error("Error al asignar territorio");
+        console.error(error);
+      } else {
+        toast.success("Territorio asignado correctamente");
+        setOpen(false);
+        onAssign();
+      }
+    } catch (err) {
+      console.error("Error en handleAssign:", err);
       toast.error("Error al asignar territorio");
-      console.error(error);
-    } else {
-      toast.success("Territorio asignado correctamente");
-      setOpen(false);
-      onAssign();
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
