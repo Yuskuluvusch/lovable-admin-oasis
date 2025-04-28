@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,12 +29,13 @@ const PublicTerritory = () => {
       }
 
       try {
+        // Consultar datos usando las relaciones establecidas por foreign keys
         const { data, error: fetchError } = await supabase
           .from("assigned_territories")
           .select(`
             id, territory_id, publisher_id, expires_at, status,
-            territory:territory_id(name, google_maps_link),
-            publisher:publisher_id(name)
+            territories(name, google_maps_link),
+            publishers(name)
           `)
           .eq("token", token)
           .single();
@@ -50,10 +52,10 @@ const PublicTerritory = () => {
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territory.name,
-          google_maps_link: data.territory.google_maps_link,
+          territory_name: data.territories.name,
+          google_maps_link: data.territories.google_maps_link,
           expires_at: data.expires_at,
-          publisher_name: data.publisher.name,
+          publisher_name: data.publishers.name,
           is_expired: isExpired
         });
 
@@ -161,19 +163,15 @@ const PublicTerritory = () => {
         )}
       </div>
 
-      {!territoryData.is_expired && territoryData.google_maps_link && (
-        <div className="flex-1">
-          <iframe
-            src={territoryData.google_maps_link}
-            width="100%"
-            height="100%"
-            style={{ border: 0 }}
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            title={`Mapa del territorio ${territoryData.territory_name}`}
-          />
-        </div>
+      <iframe
+  src={google_maps_link}
+  width="100%"
+  height="80vh"   // O algo dinámico
+  style={{ border: 0 }}
+  allowFullScreen
+  loading="lazy"
+/>
+
       )}
     </div>
   );
