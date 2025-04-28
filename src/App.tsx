@@ -14,6 +14,7 @@ import Publishers from "./pages/Publishers";
 import PublisherRoles from "./pages/PublisherRoles";
 import Zones from "./pages/Zones";
 import Territories from "./pages/Territories";
+import PublicTerritory from "./pages/PublicTerritory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,9 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
+            
+            {/* Public route for territory access by token */}
+            <Route path="/territorio/:token" element={<PublicTerritory />} />
             
             <Route
               path="/"

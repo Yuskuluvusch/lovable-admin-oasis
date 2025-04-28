@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, MapPin, Trash2 } from "lucide-react";
+import { Plus, MapPin, Trash2, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -43,16 +43,22 @@ const Territories = () => {
   };
 
   const fetchAssignments = async () => {
-    const { data, error } = await supabase.from("assigned_territories").select("*, publisher:publishers(name)").eq("status", "assigned");
+    const { data, error } = await supabase
+      .from("assigned_territories")
+      .select("*, publisher:publishers(name)")
+      .eq("status", "assigned");
+    
     if (error) {
       toast.error("Error al cargar asignaciones");
       console.error(error);
       return;
     }
-    const formattedData = (data || []).map((item: any) => ({
+    
+    const formattedData = (data || []).map((item) => ({
       ...item,
       publisher: item.publisher || { name: "-" },
     }));
+    
     setAssignments(formattedData);
   };
 
@@ -100,7 +106,13 @@ const Territories = () => {
 
   const getAssignment = (territoryId: string) => assignments.find((a) => a.territory_id === territoryId);
 
-  const getDaysRemaining = (due: string | null) => due ? Math.max(differenceInDays(new Date(due), new Date()), 0) : null;
+  const getDaysRemaining = (expireDate: string | null) => expireDate ? Math.max(differenceInDays(new Date(expireDate), new Date()), 0) : null;
+
+  const copyPublicLink = (token: string) => {
+    const link = `${window.location.origin}/territorio/${token}`;
+    navigator.clipboard.writeText(link);
+    toast.success("Enlace copiado al portapapeles");
+  };
 
   return (
     <div className="space-y-6">
@@ -165,13 +177,13 @@ const Territories = () => {
               <TableHead>Zona</TableHead>
               <TableHead>Asignado a</TableHead>
               <TableHead>Días restantes</TableHead>
-              <TableHead className="w-[100px]">Acciones</TableHead>
+              <TableHead className="w-[150px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredTerritories.map((territory) => {
               const assignment = getAssignment(territory.id);
-              const daysRemaining = assignment ? getDaysRemaining(assignment.due_at) : null;
+              const daysRemaining = assignment ? getDaysRemaining(assignment.expires_at) : null;
 
               return (
                 <TableRow key={territory.id}>
@@ -192,6 +204,16 @@ const Territories = () => {
                     <div className="flex items-center gap-1">
                       <EditTerritoryDialog territory={territory} zones={zones} onUpdate={fetchAll} />
                       {!assignment && <AssignTerritoryDialog territory={territory} onAssign={fetchAll} />}
+                      {assignment && assignment.token && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => copyPublicLink(assignment.token)}
+                          title="Copiar enlace público"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="ghost" size="icon">

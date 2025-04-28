@@ -21,7 +21,7 @@ export type TerritoryAssignment = {
   territory_id: string;
   publisher_id: string;
   assigned_at: string;
-  due_at: string | null;
+  expires_at: string | null;
   status: string | null;
   publisher?: {
     name: string;

@@ -1,32 +1,22 @@
 
 import React, { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Territory, TerritorySettings } from "../../types/territory-types";
-import { addDays, format } from "date-fns";
+import { format, addDays } from "date-fns";
+import { Territory } from "@/types/territory-types";
 
 interface Publisher {
   id: string;
   name: string;
+}
+
+interface TerritorySettingsType {
+  expiration_days: number;
 }
 
 interface AssignTerritoryDialogProps {
@@ -34,104 +24,107 @@ interface AssignTerritoryDialogProps {
   onAssign: () => void;
 }
 
-const AssignTerritoryDialog = ({ territory, onAssign }: AssignTerritoryDialogProps) => {
+const AssignTerritoryDialog: React.FC<AssignTerritoryDialogProps> = ({ territory, onAssign }) => {
   const [open, setOpen] = useState(false);
   const [publishers, setPublishers] = useState<Publisher[]>([]);
-  const [selectedPublisher, setSelectedPublisher] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [expirationDays, setExpirationDays] = useState<number>(30);
+  const [selectedPublisherId, setSelectedPublisherId] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [territorySettings, setTerritorySettings] = useState<TerritorySettingsType>({ expiration_days: 30 });
 
   useEffect(() => {
+    const fetchPublishers = async () => {
+      const { data, error } = await supabase
+        .from("publishers")
+        .select("id, name")
+        .order("name");
+
+      if (error) {
+        console.error("Error loading publishers:", error);
+        return;
+      }
+      setPublishers(data || []);
+    };
+
+    const fetchTerritorySettings = async () => {
+      const { data, error } = await supabase
+        .from("territory_settings")
+        .select("expiration_days")
+        .single();
+
+      if (error) {
+        console.error("Error loading territory settings:", error);
+        return;
+      }
+
+      if (data) {
+        setTerritorySettings(data);
+      }
+    };
+
     if (open) {
       fetchPublishers();
-      fetchExpirationDays();
+      fetchTerritorySettings();
     }
   }, [open]);
 
-  const fetchPublishers = async () => {
-    const { data, error } = await supabase
-      .from("publishers")
-      .select("id, name")
-      .order("name");
-
-    if (error) {
-      toast.error("Error al cargar publicadores");
-      console.error("Error al cargar publicadores:", error);
-      return;
-    }
-
-    setPublishers(data || []);
-  };
-
-  const fetchExpirationDays = async () => {
-    const { data, error } = await supabase
-      .from("territory_settings")
-      .select("*")
-      .single();
-
-    if (data) {
-      setExpirationDays(data.expiration_days);
-    } else if (error && error.code !== "PGRST116") {
-      console.error("Error fetching territory settings:", error);
-    }
-  };
-
   const handleAssign = async () => {
-    if (!selectedPublisher) {
+    if (!selectedPublisherId) {
       toast.error("Por favor selecciona un publicador");
       return;
     }
 
-    setIsLoading(true);
-    const now = new Date();
-    const dueDate = addDays(now, expirationDays);
+    setLoading(true);
 
-    const { error } = await supabase
-      .from("assigned_territories")
-      .insert({
+    const expiresAt = format(
+      addDays(new Date(), territorySettings.expiration_days),
+      "yyyy-MM-dd"
+    );
+
+    const { error } = await supabase.from("assigned_territories").insert([
+      {
         territory_id: territory.id,
-        publisher_id: selectedPublisher,
-        assigned_at: now.toISOString(),
-        due_at: dueDate.toISOString(),
+        publisher_id: selectedPublisherId,
+        expires_at: expiresAt,
         status: "assigned",
-      });
+      },
+    ]);
 
     if (error) {
-      toast.error("Error al asignar el territorio");
-      console.error("Error al asignar el territorio:", error);
+      toast.error("Error al asignar territorio");
+      console.error(error);
     } else {
-      toast.success("Territorio asignado exitosamente");
-      onAssign();
-      setSelectedPublisher("");
+      toast.success("Territorio asignado correctamente");
       setOpen(false);
+      onAssign();
     }
 
-    setIsLoading(false);
+    setLoading(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon">
-          <UserPlus className="h-4 w-4" />
+        <Button variant="outline" size="sm">
+          <UserPlus className="mr-2 h-4 w-4" />
+          Asignar
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Asignar Territorio</DialogTitle>
           <DialogDescription>
-            Asigna el territorio "{territory.name}" a un publicador.
+            Asigna el territorio {territory.name} a un publicador.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="publisher">Selecciona un Publicador</Label>
+
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="publisher">Publicador</Label>
             <Select
-              value={selectedPublisher}
-              onValueChange={setSelectedPublisher}
-              disabled={isLoading}
+              value={selectedPublisherId}
+              onValueChange={setSelectedPublisherId}
             >
-              <SelectTrigger>
+              <SelectTrigger id="publisher">
                 <SelectValue placeholder="Selecciona un publicador" />
               </SelectTrigger>
               <SelectContent>
@@ -143,14 +136,19 @@ const AssignTerritoryDialog = ({ territory, onAssign }: AssignTerritoryDialogPro
               </SelectContent>
             </Select>
           </div>
-          <div className="text-sm text-muted-foreground">
-            Fecha de caducidad estimada:{" "}
-            {format(addDays(new Date(), expirationDays), "dd/MM/yyyy")}
+          <div>
+            <p className="text-sm text-muted-foreground">
+              El territorio será asignado por {territorySettings.expiration_days} días según la 
+              configuración actual.
+            </p>
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleAssign} disabled={isLoading}>
-            Asignar Territorio
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={handleAssign} disabled={loading}>
+            Asignar
           </Button>
         </DialogFooter>
       </DialogContent>
