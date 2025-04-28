@@ -1,16 +1,44 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
 
 const Dashboard = () => {
   const { currentUser } = useAuth();
+  const [adminCount, setAdminCount] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Get display name for the user, fallback to email or "Admin"
   const getDisplayName = () => {
     if (!currentUser) return "Admin";
     return currentUser.email || "Admin";
   };
+
+  useEffect(() => {
+    const fetchAdminCount = async () => {
+      try {
+        setIsLoading(true);
+        const { count, error } = await supabase
+          .from("administrators")
+          .select("*", { count: "exact" });
+
+        if (error) {
+          console.error("Error fetching admin count:", error);
+          return;
+        }
+
+        setAdminCount(count || 0);
+      } catch (error) {
+        console.error("Error fetching admin count:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAdminCount();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -29,7 +57,14 @@ const Dashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2</div>
+            {isLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">Cargando...</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-bold">{adminCount}</div>
+            )}
           </CardContent>
         </Card>
 
