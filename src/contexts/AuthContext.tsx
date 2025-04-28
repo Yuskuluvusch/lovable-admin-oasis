@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { User, Session } from "@supabase/supabase-js";
@@ -11,10 +12,10 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
-// Crear el contexto
+// Create the context
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Crear el proveedor
+// Create the provider
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -100,7 +101,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   );
 };
 
-// 🎯 Exportar el hook useAuth
+// Export the useAuth hook
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

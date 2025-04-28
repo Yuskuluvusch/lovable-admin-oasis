@@ -1,7 +1,14 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -12,98 +19,105 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 
-interface Territory {
+type Zone = {
   id: string;
   name: string;
-  google_maps_link: string | null;
+};
+
+type Territory = {
+  id: string;
+  name: string;
   zone_id: string | null;
-  zones?: {
+  google_maps_link: string | null;
+  created_at: string;
+  updated_at: string;
+  zone?: {
     name: string;
   };
-}
-
-interface Zone {
-  id: string;
-  name: string;
-}
+};
 
 const Territories = () => {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
   const [newTerritory, setNewTerritory] = useState({
     name: "",
-    google_maps_link: "",
     zone_id: "",
+    google_maps_link: "",
   });
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchData = async () => {
-    // Cargar zonas
-    const { data: zonesData, error: zonesError } = await supabase
+  const fetchZones = async () => {
+    const { data, error } = await supabase
       .from("zones")
-      .select("*")
+      .select("id, name")
       .order("name");
 
-    if (zonesError) {
-      console.error("Error al cargar zonas:", zonesError);
+    if (error) {
       toast.error("Error al cargar zonas");
-    } else {
-      setZones(zonesData || []);
+      console.error("Error al cargar zonas:", error);
+      return;
     }
 
-    // Cargar territorios con sus zonas
-    const { data: territoriesData, error: territoriesError } = await supabase
+    setZones(data || []);
+  };
+
+  const fetchTerritories = async () => {
+    const { data, error } = await supabase
       .from("territories")
       .select(`
         *,
-        zones (
+        zone:zone_id (
           name
         )
       `)
       .order("name");
 
-    if (territoriesError) {
-      console.error("Error al cargar territorios:", territoriesError);
+    if (error) {
       toast.error("Error al cargar territorios");
-    } else {
-      setTerritories(territoriesData || []);
+      console.error("Error al cargar territorios:", error);
+      return;
     }
+
+    // Transform the data to match our Territory type
+    const formattedData = data.map((item: any) => ({
+      ...item,
+      zone: item.zone
+    }));
+
+    setTerritories(formattedData as Territory[]);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchZones();
+    fetchTerritories();
   }, []);
 
   const handleCreateTerritory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTerritory.name.trim() || !newTerritory.google_maps_link.trim() || !newTerritory.zone_id) {
-      toast.error("Por favor complete todos los campos");
-      return;
-    }
+    if (!newTerritory.name.trim()) return;
 
     setIsLoading(true);
-    const { error } = await supabase.from("territories").insert([{
-      name: newTerritory.name.trim(),
-      google_maps_link: newTerritory.google_maps_link.trim(),
-      zone_id: newTerritory.zone_id,
-    }]);
+    const { error } = await supabase
+      .from("territories")
+      .insert([
+        {
+          name: newTerritory.name.trim(),
+          zone_id: newTerritory.zone_id || null,
+          google_maps_link: newTerritory.google_maps_link?.trim() || null,
+        },
+      ])
+      .select()
+      .single();
 
     if (error) {
       toast.error("Error al crear el territorio");
       console.error("Error al crear el territorio:", error);
     } else {
       toast.success("Territorio creado exitosamente");
-      setNewTerritory({ name: "", google_maps_link: "", zone_id: "" });
-      fetchData();
+      setNewTerritory({ name: "", zone_id: "", google_maps_link: "" });
+      fetchTerritories();
     }
     setIsLoading(false);
   };
@@ -113,80 +127,78 @@ const Territories = () => {
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Territorios</h1>
         <p className="text-muted-foreground mt-2">
-          Gestiona los territorios y sus mapas asociados.
+          Gestiona los territorios y su asignación a zonas.
         </p>
       </div>
 
-      <form onSubmit={handleCreateTerritory} className="space-y-4 max-w-2xl">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Input
-              type="text"
-              placeholder="Nombre del territorio"
-              value={newTerritory.name}
-              onChange={(e) => setNewTerritory({ ...newTerritory, name: e.target.value })}
-              disabled={isLoading}
-            />
-          </div>
-          <div>
-            <Input
-              type="url"
-              placeholder="Enlace de Google My Maps"
-              value={newTerritory.google_maps_link}
-              onChange={(e) => setNewTerritory({ ...newTerritory, google_maps_link: e.target.value })}
-              disabled={isLoading}
-            />
-          </div>
+      <form onSubmit={handleCreateTerritory} className="flex gap-4 items-end max-w-md">
+        <div className="flex-1 space-y-2">
+          <Label htmlFor="name">Nombre del Territorio</Label>
+          <Input
+            type="text"
+            id="name"
+            placeholder="Nombre del territorio"
+            value={newTerritory.name}
+            onChange={(e) =>
+              setNewTerritory({ ...newTerritory, name: e.target.value })
+            }
+            disabled={isLoading}
+          />
         </div>
-        <div className="flex gap-4">
-          <div className="w-64">
-            <Select
-              value={newTerritory.zone_id}
-              onValueChange={(value) => setNewTerritory({ ...newTerritory, zone_id: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Seleccionar zona" />
-              </SelectTrigger>
-              <SelectContent>
-                {zones.map((zone) => (
-                  <SelectItem key={zone.id} value={zone.id}>
-                    {zone.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button type="submit" disabled={isLoading}>
-            <Plus className="mr-2 h-4 w-4" />
-            Crear Territorio
-          </Button>
+
+        <div className="flex-1 space-y-2">
+          <Label htmlFor="zone">Zona</Label>
+          <Select
+            onValueChange={(value) =>
+              setNewTerritory({ ...newTerritory, zone_id: value })
+            }
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Selecciona una zona" />
+            </SelectTrigger>
+            <SelectContent>
+              {zones.map((zone) => (
+                <SelectItem key={zone.id} value={zone.id}>
+                  {zone.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+
+        <div className="flex-1 space-y-2">
+          <Label htmlFor="googleMapsLink">Link de Google Maps (Opcional)</Label>
+          <Input
+            type="text"
+            id="googleMapsLink"
+            placeholder="Enlace de Google Maps"
+            value={newTerritory.google_maps_link}
+            onChange={(e) =>
+              setNewTerritory({ ...newTerritory, google_maps_link: e.target.value })
+            }
+            disabled={isLoading}
+          />
+        </div>
+
+        <Button type="submit" disabled={isLoading}>
+          <Plus className="mr-2 h-4 w-4" />
+          Crear Territorio
+        </Button>
       </form>
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nombre</TableHead>
+              <TableHead>Nombre del Territorio</TableHead>
               <TableHead>Zona</TableHead>
-              <TableHead>Enlace del Mapa</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {territories.map((territory) => (
               <TableRow key={territory.id}>
                 <TableCell>{territory.name}</TableCell>
-                <TableCell>{territory.zones?.name}</TableCell>
-                <TableCell>
-                  <a 
-                    href={territory.google_maps_link || '#'} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    Ver mapa
-                  </a>
-                </TableCell>
+                <TableCell>{territory.zone?.name || "Sin Zona"}</TableCell>
               </TableRow>
             ))}
           </TableBody>
