@@ -52,7 +52,17 @@ const Territories = () => {
       return;
     }
     
-    setTerritories(data || []);
+setTerritories(
+  (data || []).map((item: any) => ({
+    id: item.id,
+    name: item.name,
+    zone_id: item.zone_id,
+    google_maps_link: item.google_maps_link,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+    zone: item.zone ? { id: item.zone.id, name: item.zone.name } : undefined,
+  }))
+);
   };
 
   const fetchAssignments = async () => {
