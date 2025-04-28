@@ -1,90 +1,83 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from "react";
 import { useToast } from "@/components/ui/use-toast";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthContextType {
   currentUser: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock admin users for demonstration
-const MOCK_USERS = [
-  {
-    id: "1",
-    name: "Admin Usuario",
-    email: "admin@example.com",
-    password: "admin123", // In a real app, this would be hashed
-    role: "admin",
-  },
-  {
-    id: "2",
-    name: "Gerente Sistema",
-    email: "gerente@example.com",
-    password: "gerente123", // In a real app, this would be hashed
-    role: "admin",
-  }
-];
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in
-    const storedUser = localStorage.getItem("adminUser");
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setCurrentUser(parsedUser);
-      } catch (error) {
-        console.error("Error parsing stored user", error);
-        localStorage.removeItem("adminUser");
+    // Configurar el listener de cambios de estado de autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setCurrentUser(session?.user ?? null);
       }
-    }
-    setIsLoading(false);
+    );
+
+    // Verificar si hay una sesión existente
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setCurrentUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Simple authentication logic using mock data
-    const user = MOCK_USERS.find(
-      (u) => u.email === email && u.password === password
-    );
-
-    if (user) {
-      const { password, ...userWithoutPassword } = user;
-      setCurrentUser(userWithoutPassword);
-      localStorage.setItem("adminUser", JSON.stringify(userWithoutPassword));
-      toast({
-        title: "Inicio de sesión exitoso",
-        description: `Bienvenido, ${userWithoutPassword.name}`,
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-      return true;
-    } else {
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Error de autenticación",
+          description: error.message || "Email o contraseña incorrectos",
+        });
+        return false;
+      }
+
+      if (data.user) {
+        toast({
+          title: "Inicio de sesión exitoso",
+          description: `Bienvenido, ${data.user.email}`,
+        });
+        return true;
+      }
+      
+      return false;
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error de autenticación",
-        description: "Email o contraseña incorrectos",
+        description: error.message || "Ha ocurrido un error durante el inicio de sesión",
       });
       return false;
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setCurrentUser(null);
-    localStorage.removeItem("adminUser");
+    setSession(null);
     toast({
       title: "Sesión cerrada",
       description: "Has cerrado sesión correctamente",
