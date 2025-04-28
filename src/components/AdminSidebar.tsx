@@ -39,6 +39,21 @@ const AdminSidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { currentUser, logout } = useAuth();
 
+  // Get user initials for avatar display
+  const getUserInitials = () => {
+    if (!currentUser) return "A";
+    if (currentUser.email) {
+      return currentUser.email.charAt(0).toUpperCase();
+    }
+    return "A";
+  };
+
+  // Get display name for the user
+  const getDisplayName = () => {
+    if (!currentUser) return "";
+    return currentUser.email || "";
+  };
+
   return (
     <div
       className={cn(
@@ -91,11 +106,11 @@ const AdminSidebar = () => {
           )}
         >
           <div className="h-9 w-9 rounded-full bg-accent flex items-center justify-center text-primary font-medium">
-            {currentUser?.name?.charAt(0) || "A"}
+            {getUserInitials()}
           </div>
           {!isCollapsed && (
             <div className="ml-3 truncate">
-              <div className="font-medium text-sm">{currentUser?.name}</div>
+              <div className="font-medium text-sm">{getDisplayName()}</div>
               <div className="text-xs text-muted-foreground truncate">
                 {currentUser?.email}
               </div>

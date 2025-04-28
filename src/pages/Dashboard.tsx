@@ -6,12 +6,18 @@ import { useAuth } from "@/contexts/AuthContext";
 const Dashboard = () => {
   const { currentUser } = useAuth();
 
+  // Get display name for the user, fallback to email or "Admin"
+  const getDisplayName = () => {
+    if (!currentUser) return "Admin";
+    return currentUser.email || "Admin";
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground mt-2">
-          Bienvenido, {currentUser?.name}. Aquí está tu resumen administrativo.
+          Bienvenido, {getDisplayName()}. Aquí está tu resumen administrativo.
         </p>
       </div>
 
@@ -74,7 +80,7 @@ const Dashboard = () => {
               <div className="border-b pb-2">
                 <p className="text-sm font-medium">Inicio de sesión</p>
                 <p className="text-xs text-muted-foreground">
-                  {currentUser?.name} • {new Date().toLocaleString()}
+                  {getDisplayName()} • {new Date().toLocaleString()}
                 </p>
               </div>
               <div className="border-b pb-2">
