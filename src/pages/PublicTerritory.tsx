@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -33,8 +34,8 @@ const PublicTerritory = () => {
           .select(`
             expires_at, 
             status,
-            territory:territories!inner(name, google_maps_link),
-            publisher:publishers!inner(name)
+            territories!inner (name, google_maps_link),
+            publishers!inner (name)
           `)
           .eq("token", token)
           .single();
@@ -51,10 +52,10 @@ const PublicTerritory = () => {
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territory.name || "Territorio sin nombre",
-          google_maps_link: data.territory.google_maps_link,
+          territory_name: data.territories.name || "Territorio sin nombre",
+          google_maps_link: data.territories.google_maps_link,
           expires_at: data.expires_at,
-          publisher_name: data.publisher.name || "Sin asignar",
+          publisher_name: data.publishers.name || "Sin asignar",
           is_expired: isExpired
         });
 
@@ -83,7 +84,7 @@ const PublicTerritory = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col">
+      <div className="flex flex-col h-screen">
         <div className="container py-4">
           <Skeleton className="h-6 w-1/3 mb-2" />
           <Skeleton className="h-4 w-1/4 mb-2" />
@@ -120,10 +121,10 @@ const PublicTerritory = () => {
   const daysRemaining = territoryData.expires_at ? getDaysRemaining(territoryData.expires_at) : null;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="container py-4">
-        <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-2">
-          <h1 className="text-xl font-semibold">Territorio: {territoryData.territory_name}</h1>
+    <div className="flex flex-col h-screen">
+      <div className="container py-2">
+        <div className="flex flex-col space-y-1 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-1">
+          <h1 className="text-lg font-semibold">Territorio: {territoryData.territory_name}</h1>
           
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Info className="h-4 w-4" />
@@ -131,7 +132,7 @@ const PublicTerritory = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
           {territoryData.expires_at && (
             <>
               <Calendar className="h-4 w-4" />
@@ -141,7 +142,7 @@ const PublicTerritory = () => {
         </div>
 
         {daysRemaining !== null && !territoryData.is_expired && (
-          <Alert className={`${daysRemaining < 7 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-green-500 bg-green-50 text-green-800"} mb-4`}>
+          <Alert className={`${daysRemaining < 7 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-green-500 bg-green-50 text-green-800"} mb-2 py-2`}>
             <Calendar className="h-4 w-4" />
             <AlertTitle>
               {daysRemaining === 0 
@@ -152,7 +153,7 @@ const PublicTerritory = () => {
         )}
 
         {territoryData.is_expired && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="destructive" className="mb-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Territorio caducado</AlertTitle>
             <AlertDescription>
@@ -168,7 +169,7 @@ const PublicTerritory = () => {
             src={territoryData.google_maps_link}
             width="100%"
             height="100%"
-            style={{ border: 0 }}
+            style={{ border: 0, minHeight: "calc(100vh - 120px)" }}
             allowFullScreen
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
