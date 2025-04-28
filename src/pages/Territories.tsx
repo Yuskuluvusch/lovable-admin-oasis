@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +36,7 @@ const Territories = () => {
   const fetchTerritories = async () => {
     const { data, error } = await supabase
       .from("territories")
-      .select("*, zone:zones!inner(name)")
+      .select("*, zone:zones(name)")
       .order("name");
     
     if (error) {
@@ -49,7 +50,10 @@ const Territories = () => {
   const fetchAssignments = async () => {
     const { data, error } = await supabase
       .from("assigned_territories")
-      .select("*, publisher:publishers!inner(name)")
+      .select(`
+        *,
+        publisher:publishers(name)
+      `)
       .eq("status", "assigned");
     
     if (error) {
@@ -182,7 +186,7 @@ const Territories = () => {
           <TableBody>
             {filteredTerritories.map((territory) => {
               const assignment = getAssignment(territory.id);
-              const daysRemaining = assignment ? getDaysRemaining(assignment.expires_at) : null;
+              const daysRemaining = assignment?.expires_at ? getDaysRemaining(assignment.expires_at) : null;
 
               return (
                 <TableRow key={territory.id}>

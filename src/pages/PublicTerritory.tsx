@@ -31,16 +31,21 @@ const PublicTerritory = () => {
         const { data, error: fetchError } = await supabase
           .from("assigned_territories")
           .select(`
-            expires_at, 
-            status,
-            territory:territories!inner(name, google_maps_link),
-            publisher:publishers!inner(name)
+            *,
+            territory:territories(name, google_maps_link),
+            publisher:publishers(name)
           `)
           .eq("token", token)
           .single();
 
         if (fetchError || !data) {
           setError("Territorio no encontrado o enlace inválido.");
+          setLoading(false);
+          return;
+        }
+
+        if (!data.territory || !data.publisher) {
+          setError("Datos del territorio incompletos.");
           setLoading(false);
           return;
         }
