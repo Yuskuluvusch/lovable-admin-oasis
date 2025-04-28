@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +42,7 @@ const Territories = () => {
         google_maps_link,
         created_at,
         updated_at,
-        zones(name)
+        zones:zone_id(name)
       `)
       .order("name");
     
@@ -53,7 +52,6 @@ const Territories = () => {
       return;
     }
     
-    // Transformar los datos para que se ajusten al tipo Territory[]
     const transformedData: Territory[] = (data || []).map(item => ({
       id: item.id,
       name: item.name,
@@ -78,7 +76,7 @@ const Territories = () => {
         expires_at,
         status,
         token,
-        publishers(name)
+        publishers:publisher_id(name)
       `)
       .eq("status", "assigned");
     
@@ -88,7 +86,6 @@ const Territories = () => {
       return;
     }
     
-    // Transformar los datos para que se ajusten al tipo TerritoryAssignment[]
     const transformedData: TerritoryAssignment[] = (data || []).map(item => ({
       id: item.id,
       territory_id: item.territory_id,

@@ -29,13 +29,13 @@ const PublicTerritory = () => {
       }
 
       try {
-        // Usar join explícitos para consultar datos relacionados
+        // Especificar las relaciones correctamente usando foreign keys específicos
         const { data, error: fetchError } = await supabase
           .from("assigned_territories")
           .select(`
             id, territory_id, publisher_id, expires_at, status,
-            territories!inner(name, google_maps_link),
-            publishers!inner(name)
+            territories:territory_id(name, google_maps_link),
+            publishers:publisher_id(name)
           `)
           .eq("token", token)
           .single();
