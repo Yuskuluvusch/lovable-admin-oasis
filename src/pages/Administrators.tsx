@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +33,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { Pencil, Trash, Plus, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Admin {
   id: string;
@@ -45,21 +45,7 @@ interface Admin {
 const Administrators = () => {
   const { toast } = useToast();
   const { currentUser } = useAuth();
-  const [admins, setAdmins] = useState<Admin[]>([
-    {
-      id: "1",
-      name: "Admin Usuario",
-      email: "admin@example.com",
-      role: "admin",
-    },
-    {
-      id: "2",
-      name: "Gerente Sistema",
-      email: "gerente@example.com",
-      role: "admin",
-    },
-  ]);
-
+  const [admins, setAdmins] = useState<Admin[]>([]);
   const [editingAdmin, setEditingAdmin] = useState<Admin | null>(null);
   const [newAdmin, setNewAdmin] = useState<Partial<Admin>>({
     name: "",
@@ -67,48 +53,105 @@ const Administrators = () => {
     role: "admin",
   });
   const [adminToDelete, setAdminToDelete] = useState<Admin | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleCreateAdmin = () => {
+  useEffect(() => {
+    fetchAdmins();
+  }, []);
+
+  const fetchAdmins = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("administrators")
+        .select("*")
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      setAdmins(data || []);
+    } catch (error) {
+      console.error("Error fetching admins:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron cargar los administradores",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateAdmin = async () => {
     if (!newAdmin.name || !newAdmin.email) return;
 
-    const admin: Admin = {
-      id: Date.now().toString(),
-      name: newAdmin.name,
-      email: newAdmin.email,
-      role: "admin",
-    };
+    try {
+      const { data, error } = await supabase
+        .from("administrators")
+        .insert([
+          {
+            name: newAdmin.name,
+            email: newAdmin.email,
+            role: "admin",
+          },
+        ])
+        .select()
+        .single();
 
-    setAdmins([...admins, admin]);
-    setNewAdmin({ name: "", email: "", role: "admin" });
+      if (error) throw error;
 
-    toast({
-      title: "Administrador creado",
-      description: `${admin.name} ha sido añadido como administrador.`,
-    });
+      setAdmins([...admins, data]);
+      setNewAdmin({ name: "", email: "", role: "admin" });
+
+      toast({
+        title: "Administrador creado",
+        description: `${data.name} ha sido añadido como administrador.`,
+      });
+    } catch (error: any) {
+      console.error("Error creating admin:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "No se pudo crear el administrador",
+      });
+    }
   };
 
-  const handleUpdateAdmin = () => {
+  const handleUpdateAdmin = async () => {
     if (!editingAdmin) return;
 
-    setAdmins(
-      admins.map((admin) =>
-        admin.id === editingAdmin.id ? editingAdmin : admin
-      )
-    );
+    try {
+      const { data, error } = await supabase
+        .from("administrators")
+        .update({
+          name: editingAdmin.name,
+          email: editingAdmin.email,
+        })
+        .eq("id", editingAdmin.id)
+        .select()
+        .single();
 
-    toast({
-      title: "Administrador actualizado",
-      description: `La información de ${editingAdmin.name} ha sido actualizada.`,
-    });
+      if (error) throw error;
 
-    setEditingAdmin(null);
+      setAdmins(admins.map((admin) => (admin.id === data.id ? data : admin)));
+      setEditingAdmin(null);
+
+      toast({
+        title: "Administrador actualizado",
+        description: `La información de ${data.name} ha sido actualizada.`,
+      });
+    } catch (error: any) {
+      console.error("Error updating admin:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "No se pudo actualizar el administrador",
+      });
+    }
   };
 
-  const handleDeleteAdmin = () => {
+  const handleDeleteAdmin = async () => {
     if (!adminToDelete) return;
-    
-    // Prevent deleting yourself
-    if (adminToDelete.id === currentUser?.id) {
+
+    if (adminToDelete.email === currentUser?.email) {
       toast({
         variant: "destructive",
         title: "Acción no permitida",
@@ -118,14 +161,29 @@ const Administrators = () => {
       return;
     }
 
-    setAdmins(admins.filter((admin) => admin.id !== adminToDelete.id));
+    try {
+      const { error } = await supabase
+        .from("administrators")
+        .delete()
+        .eq("id", adminToDelete.id);
 
-    toast({
-      title: "Administrador eliminado",
-      description: `${adminToDelete.name} ha sido eliminado del sistema.`,
-    });
+      if (error) throw error;
 
-    setAdminToDelete(null);
+      setAdmins(admins.filter((admin) => admin.id !== adminToDelete.id));
+      toast({
+        title: "Administrador eliminado",
+        description: `${adminToDelete.name} ha sido eliminado del sistema.`,
+      });
+    } catch (error: any) {
+      console.error("Error deleting admin:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "No se pudo eliminar el administrador",
+      });
+    } finally {
+      setAdminToDelete(null);
+    }
   };
 
   return (
