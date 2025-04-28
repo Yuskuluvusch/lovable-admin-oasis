@@ -167,14 +167,15 @@ const PublicTerritory = () => {
           </h2>
           <div className="aspect-video w-full">
             <iframe
-  src={google_maps_link}
-  width="100%"
-  height="80vh"   // O algo dinámico
-  style={{ border: 0 }}
-  allowFullScreen
-  loading="lazy"
-/>
-
+              src={territoryData.google_maps_link}
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              title={`Mapa del territorio ${territoryData.territory_name}`}
+            ></iframe>
           </div>
         </div>
       )}
