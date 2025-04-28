@@ -32,10 +32,9 @@ const PublicTerritory = () => {
         const { data, error: fetchError } = await supabase
           .from("assigned_territories")
           .select(`
-            expires_at, 
-            status,
-            territories(name, google_maps_link),
-            publishers(name)
+            *,
+            territory:territories(name, google_maps_link),
+            publisher:publishers(name)
           `)
           .eq("token", token)
           .single();
@@ -47,17 +46,16 @@ const PublicTerritory = () => {
           return;
         }
 
-        // El tipo de data ahora debe ser correcto gracias a las relaciones FK
         const isExpired = 
           !data.expires_at || 
           new Date(data.expires_at) < new Date() || 
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territories?.name || "Territorio sin nombre",
-          google_maps_link: data.territories?.google_maps_link,
+          territory_name: data.territory?.name || "Territorio sin nombre",
+          google_maps_link: data.territory?.google_maps_link,
           expires_at: data.expires_at,
-          publisher_name: data.publishers?.name || "Sin asignar",
+          publisher_name: data.publisher?.name || "Sin asignar",
           is_expired: isExpired
         });
 
