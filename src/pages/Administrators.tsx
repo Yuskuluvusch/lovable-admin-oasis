@@ -227,11 +227,11 @@ const Administrators = () => {
 
         <Dialog>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-[#0078D4] hover:bg-[#106EBE]">
               <Plus size={16} className="mr-2" /> Nuevo Administrador
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Crear administrador</DialogTitle>
               <DialogDescription>
@@ -243,6 +243,7 @@ const Administrators = () => {
                 <Label htmlFor="name">Nombre</Label>
                 <Input
                   id="name"
+                  className="h-9"
                   placeholder="Nombre completo"
                   value={newAdmin.name}
                   onChange={(e) =>
@@ -255,6 +256,7 @@ const Administrators = () => {
                 <Input
                   id="email"
                   type="email"
+                  className="h-9"
                   placeholder="correo@ejemplo.com"
                   value={newAdmin.email}
                   onChange={(e) =>
@@ -267,6 +269,7 @@ const Administrators = () => {
                 <Input
                   id="password"
                   type="password"
+                  className="h-9"
                   placeholder="••••••••"
                   value={newAdmin.password}
                   onChange={(e) =>
@@ -278,6 +281,7 @@ const Administrators = () => {
             <DialogFooter>
               <Button
                 onClick={handleCreateAdmin}
+                className="bg-[#0078D4] hover:bg-[#106EBE]"
                 disabled={!newAdmin.name || !newAdmin.email || !newAdmin.password}
               >
                 Crear
