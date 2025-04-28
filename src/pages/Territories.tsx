@@ -48,15 +48,20 @@ const Territories = () => {
 
   const fetchData = async () => {
     // Cargar zonas
-    const { data: zonesData } = await supabase
+    const { data: zonesData, error: zonesError } = await supabase
       .from("zones")
       .select("*")
       .order("name");
 
-    if (zonesData) setZones(zonesData);
+    if (zonesError) {
+      console.error("Error al cargar zonas:", zonesError);
+      toast.error("Error al cargar zonas");
+    } else {
+      setZones(zonesData || []);
+    }
 
     // Cargar territorios con sus zonas
-    const { data: territoriesData } = await supabase
+    const { data: territoriesData, error: territoriesError } = await supabase
       .from("territories")
       .select(`
         *,
@@ -66,7 +71,12 @@ const Territories = () => {
       `)
       .order("name");
 
-    if (territoriesData) setTerritories(territoriesData);
+    if (territoriesError) {
+      console.error("Error al cargar territorios:", territoriesError);
+      toast.error("Error al cargar territorios");
+    } else {
+      setTerritories(territoriesData || []);
+    }
   };
 
   useEffect(() => {
@@ -89,6 +99,7 @@ const Territories = () => {
 
     if (error) {
       toast.error("Error al crear el territorio");
+      console.error("Error al crear el territorio:", error);
     } else {
       toast.success("Territorio creado exitosamente");
       setNewTerritory({ name: "", google_maps_link: "", zone_id: "" });

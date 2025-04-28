@@ -25,6 +25,7 @@ const Zones = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const fetchZones = async () => {
+    // Asegurarse de usar el from con la tabla correcta que ahora existe en la BD
     const { data, error } = await supabase
       .from("zones")
       .select("*")
@@ -32,10 +33,11 @@ const Zones = () => {
 
     if (error) {
       toast.error("Error al cargar zonas");
+      console.error("Error al cargar zonas:", error);
       return;
     }
 
-    setZones(data);
+    setZones(data || []);
   };
 
   useEffect(() => {
@@ -47,12 +49,14 @@ const Zones = () => {
     if (!newZoneName.trim()) return;
 
     setIsLoading(true);
+    // Asegurarse de usar el from con la tabla correcta que ahora existe en la BD
     const { error } = await supabase
       .from("zones")
       .insert([{ name: newZoneName.trim() }]);
 
     if (error) {
       toast.error("Error al crear la zona");
+      console.error("Error al crear la zona:", error);
     } else {
       toast.success("Zona creada exitosamente");
       setNewZoneName("");

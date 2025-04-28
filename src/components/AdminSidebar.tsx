@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 const AdminSidebar = () => {
-  const { signOut } = useAuth();
+  const { logout } = useAuth();
 
   return (
     <aside className="w-64 bg-slate-800 text-white p-6">
@@ -62,7 +62,7 @@ const AdminSidebar = () => {
         <Button
           variant="ghost"
           className="w-full justify-start text-white hover:text-white hover:bg-slate-700"
-          onClick={signOut}
+          onClick={logout}
         >
           <LogOut className="mr-2 h-4 w-4" />
           Cerrar Sesión
