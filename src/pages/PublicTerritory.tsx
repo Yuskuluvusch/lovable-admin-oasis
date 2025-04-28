@@ -34,8 +34,8 @@ const PublicTerritory = () => {
           .select(`
             expires_at, 
             status,
-            territory:territories(name, google_maps_link),
-            publisher:publishers(name)
+            territory:territories!inner(name, google_maps_link),
+            publisher:publishers!inner(name)
           `)
           .eq("token", token)
           .single();
@@ -53,10 +53,10 @@ const PublicTerritory = () => {
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territory?.name || "Territorio sin nombre",
-          google_maps_link: data.territory?.google_maps_link,
+          territory_name: data.territory.name || "Territorio sin nombre",
+          google_maps_link: data.territory.google_maps_link,
           expires_at: data.expires_at,
-          publisher_name: data.publisher?.name || "Sin asignar",
+          publisher_name: data.publisher.name || "Sin asignar",
           is_expired: isExpired
         });
 
@@ -85,18 +85,18 @@ const PublicTerritory = () => {
 
   if (loading) {
     return (
-      <div className="container py-8 max-w-3xl mx-auto space-y-6">
+      <div className="container py-8 max-w-4xl mx-auto space-y-6">
         <Skeleton className="h-8 w-3/4 mb-4" />
         <Skeleton className="h-6 w-1/2 mb-2" />
         <Skeleton className="h-6 w-1/3 mb-8" />
-        <Skeleton className="h-96 w-full rounded-lg" />
+        <Skeleton className="h-[600px] w-full rounded-lg" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="container py-8 max-w-3xl mx-auto">
+      <div className="container py-8 max-w-4xl mx-auto">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
@@ -108,7 +108,7 @@ const PublicTerritory = () => {
 
   if (!territoryData) {
     return (
-      <div className="container py-8 max-w-3xl mx-auto">
+      <div className="container py-8 max-w-4xl mx-auto">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Territorio no encontrado</AlertTitle>
@@ -121,7 +121,7 @@ const PublicTerritory = () => {
   const daysRemaining = territoryData.expires_at ? getDaysRemaining(territoryData.expires_at) : null;
 
   return (
-    <div className="container py-8 max-w-3xl mx-auto space-y-6">
+    <div className="container py-8 max-w-4xl mx-auto space-y-6">
       <h1 className="text-3xl font-semibold">Territorio: {territoryData.territory_name}</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -165,7 +165,7 @@ const PublicTerritory = () => {
             <Map className="h-5 w-5" /> 
             Mapa del territorio
           </h2>
-          <div className="aspect-video w-full">
+          <div className="aspect-[4/3] w-full">
             <iframe
               src={territoryData.google_maps_link}
               width="100%"

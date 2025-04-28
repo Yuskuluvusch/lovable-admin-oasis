@@ -33,7 +33,11 @@ const Territories = () => {
   };
 
   const fetchTerritories = async () => {
-    const { data, error } = await supabase.from("territories").select("*, zone:zone_id(name)").order("name");
+    const { data, error } = await supabase
+      .from("territories")
+      .select("*, zone:zones!inner(name)")
+      .order("name");
+    
     if (error) {
       toast.error("Error al cargar territorios");
       console.error(error);
@@ -45,7 +49,7 @@ const Territories = () => {
   const fetchAssignments = async () => {
     const { data, error } = await supabase
       .from("assigned_territories")
-      .select("*, publisher:publishers(name)")
+      .select("*, publisher:publishers!inner(name)")
       .eq("status", "assigned");
     
     if (error) {
@@ -54,12 +58,7 @@ const Territories = () => {
       return;
     }
     
-    const formattedData = (data || []).map((item) => ({
-      ...item,
-      publisher: item.publisher || { name: "-" },
-    }));
-    
-    setAssignments(formattedData);
+    setAssignments(data || []);
   };
 
   const fetchAll = () => {
