@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Plus, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Table,
@@ -40,7 +41,9 @@ type Territory = {
 
 const Territories = () => {
   const [territories, setTerritories] = useState<Territory[]>([]);
+  const [filteredTerritories, setFilteredTerritories] = useState<Territory[]>([]);
   const [zones, setZones] = useState<Zone[]>([]);
+  const [selectedZone, setSelectedZone] = useState<string>("all");
   const [newTerritory, setNewTerritory] = useState({
     name: "",
     zone_id: "",
@@ -80,19 +83,29 @@ const Territories = () => {
       return;
     }
 
-    // Transform the data to match our Territory type
     const formattedData = data.map((item: any) => ({
       ...item,
       zone: item.zone
     }));
 
-    setTerritories(formattedData as Territory[]);
+    setTerritories(formattedData);
+    setFilteredTerritories(formattedData);
   };
 
   useEffect(() => {
     fetchZones();
     fetchTerritories();
   }, []);
+
+  useEffect(() => {
+    if (selectedZone === "all") {
+      setFilteredTerritories(territories);
+    } else {
+      setFilteredTerritories(
+        territories.filter((territory) => territory.zone_id === selectedZone)
+      );
+    }
+  }, [selectedZone, territories]);
 
   const handleCreateTerritory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,6 +142,26 @@ const Territories = () => {
         <p className="text-muted-foreground mt-2">
           Gestiona los territorios y su asignación a zonas.
         </p>
+      </div>
+
+      <div className="max-w-xs">
+        <Label htmlFor="zone-filter">Filtrar por Zona</Label>
+        <Select
+          value={selectedZone}
+          onValueChange={(value) => setSelectedZone(value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecciona una zona" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las zonas</SelectItem>
+            {zones.map((zone) => (
+              <SelectItem key={zone.id} value={zone.id}>
+                {zone.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <form onSubmit={handleCreateTerritory} className="flex gap-4 items-end max-w-md">
@@ -195,7 +228,7 @@ const Territories = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {territories.map((territory) => (
+            {filteredTerritories.map((territory) => (
               <TableRow key={territory.id}>
                 <TableCell>{territory.name}</TableCell>
                 <TableCell>{territory.zone?.name || "Sin Zona"}</TableCell>
