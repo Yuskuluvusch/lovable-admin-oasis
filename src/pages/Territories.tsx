@@ -37,8 +37,13 @@ const Territories = () => {
     const { data, error } = await supabase
       .from("territories")
       .select(`
-        *,
-        zone:zones!inner(name)
+        id,
+        name,
+        zone_id,
+        google_maps_link,
+        created_at,
+        updated_at,
+        zones(name)
       `)
       .order("name");
     
@@ -47,15 +52,33 @@ const Territories = () => {
       console.error(error);
       return;
     }
-    setTerritories(data || []);
+    
+    // Transformar los datos para que se ajusten al tipo Territory[]
+    const transformedData: Territory[] = (data || []).map(item => ({
+      id: item.id,
+      name: item.name,
+      zone_id: item.zone_id,
+      google_maps_link: item.google_maps_link,
+      created_at: item.created_at,
+      updated_at: item.updated_at,
+      zone: item.zones ? { name: item.zones.name } : undefined
+    }));
+    
+    setTerritories(transformedData);
   };
 
   const fetchAssignments = async () => {
     const { data, error } = await supabase
       .from("assigned_territories")
       .select(`
-        *,
-        publisher:publishers!inner(name)
+        id,
+        territory_id,
+        publisher_id,
+        assigned_at,
+        expires_at,
+        status,
+        token,
+        publishers(name)
       `)
       .eq("status", "assigned");
     
@@ -64,7 +87,20 @@ const Territories = () => {
       console.error(error);
       return;
     }
-    setAssignments(data || []);
+    
+    // Transformar los datos para que se ajusten al tipo TerritoryAssignment[]
+    const transformedData: TerritoryAssignment[] = (data || []).map(item => ({
+      id: item.id,
+      territory_id: item.territory_id,
+      publisher_id: item.publisher_id,
+      assigned_at: item.assigned_at,
+      expires_at: item.expires_at,
+      status: item.status,
+      token: item.token,
+      publisher: item.publishers ? { name: item.publishers.name } : undefined
+    }));
+    
+    setAssignments(transformedData);
   };
 
   const fetchAll = () => {

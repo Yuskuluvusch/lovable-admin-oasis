@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,12 +29,13 @@ const PublicTerritory = () => {
       }
 
       try {
+        // Usar join explícitos para consultar datos relacionados
         const { data, error: fetchError } = await supabase
           .from("assigned_territories")
           .select(`
-            *,
-            territory:territories!inner(name, google_maps_link),
-            publisher:publishers!inner(name)
+            id, territory_id, publisher_id, expires_at, status,
+            territories!inner(name, google_maps_link),
+            publishers!inner(name)
           `)
           .eq("token", token)
           .single();
@@ -50,10 +52,10 @@ const PublicTerritory = () => {
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territory.name,
-          google_maps_link: data.territory.google_maps_link,
+          territory_name: data.territories.name,
+          google_maps_link: data.territories.google_maps_link,
           expires_at: data.expires_at,
-          publisher_name: data.publisher.name,
+          publisher_name: data.publishers.name,
           is_expired: isExpired
         });
 
