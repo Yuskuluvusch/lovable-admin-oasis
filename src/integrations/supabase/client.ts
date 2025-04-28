@@ -5,6 +5,7 @@ import type { Database } from './types';
 
 const SUPABASE_URL = "https://otqllxpscbiugpfhbbbt.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cWxseHBzY2JpdWdwZmhiYmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU4MjQ2MzQsImV4cCI6MjA2MTQwMDYzNH0.5nASOn_B_rIYuSgRGqetswdlKnbwhNew9f8r23FMsRc";
+const SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cWxseHBzY2JpdWdwZmhiYmJ0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NTgyNDYzNCwiZXhwIjoyMDYxNDAwNjM0fQ.uhzrBUKyPED2o2y-c7Gnc1mE5YizEk03Nt7HFPkOsZY";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
@@ -15,3 +16,15 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Create an admin client to manage users
+export const adminAuthClient = createClient<Database>(
+  SUPABASE_URL,
+  SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
