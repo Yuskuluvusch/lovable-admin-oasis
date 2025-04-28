@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { TerritorySettings } from "@/types/territory-types";
+import { AppSettings } from "@/types/territory-types";
 
 const TerritoryConfigDialog = () => {
   const [expirationDays, setExpirationDays] = useState<string>("30");
@@ -24,14 +24,14 @@ const TerritoryConfigDialog = () => {
   useEffect(() => {
     const fetchConfig = async () => {
       const { data, error } = await supabase
-        .from("territory_settings")
-        .select("*")
+        .from("app_settings")
+        .select("territory_link_days")
         .single();
 
       if (data) {
-        setExpirationDays(String(data.expiration_days));
+        setExpirationDays(String(data.territory_link_days));
       } else if (error && error.code !== "PGRST116") {
-        console.error("Error fetching territory settings:", error);
+        console.error("Error fetching app settings:", error);
       }
     };
 
@@ -49,15 +49,15 @@ const TerritoryConfigDialog = () => {
     }
 
     const { error } = await supabase
-      .from("territory_settings")
+      .from("app_settings")
       .upsert({ 
         id: 1,
-        expiration_days: days 
+        territory_link_days: days 
       });
 
     if (error) {
       toast.error("Error al guardar la configuración");
-      console.error("Error saving territory settings:", error);
+      console.error("Error saving app settings:", error);
     } else {
       toast.success("Configuración guardada exitosamente");
     }

@@ -39,6 +39,27 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          created_at: string
+          id: number
+          territory_link_days: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: number
+          territory_link_days?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          territory_link_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       assigned_territories: {
         Row: {
           assigned_at: string
@@ -83,20 +104,6 @@ export type Database = {
           },
           {
             foreignKeyName: "assigned_territories_territory_id_fkey"
-            columns: ["territory_id"]
-            isOneToOne: false
-            referencedRelation: "territories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_assigned_territories_publisher"
-            columns: ["publisher_id"]
-            isOneToOne: false
-            referencedRelation: "publishers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_assigned_territories_territory"
             columns: ["territory_id"]
             isOneToOne: false
             referencedRelation: "territories"
@@ -191,27 +198,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      territory_settings: {
-        Row: {
-          created_at: string
-          expiration_days: number
-          id: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          expiration_days?: number
-          id: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          expiration_days?: number
-          id?: number
-          updated_at?: string
-        }
-        Relationships: []
       }
       zones: {
         Row: {

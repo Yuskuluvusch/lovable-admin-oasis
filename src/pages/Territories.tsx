@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,7 @@ const Territories = () => {
         google_maps_link,
         created_at,
         updated_at,
-        zones:zone_id(name)
+        zones(name)
       `)
       .order("name");
     
@@ -76,7 +77,7 @@ const Territories = () => {
         expires_at,
         status,
         token,
-        publishers:publisher_id(name)
+        publishers(name)
       `)
       .eq("status", "assigned");
     

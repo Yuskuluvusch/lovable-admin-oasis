@@ -11,9 +11,7 @@ export type Territory = {
   google_maps_link: string | null;
   created_at: string;
   updated_at: string;
-  zone?: {
-    name: string;
-  };
+  zone?: Zone;
 };
 
 export type TerritoryAssignment = {
@@ -29,9 +27,9 @@ export type TerritoryAssignment = {
   };
 };
 
-export type TerritorySettings = {
+export type AppSettings = {
   id: number;
-  expiration_days: number;
+  territory_link_days: number;
   created_at: string;
   updated_at: string;
 };

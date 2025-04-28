@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -15,8 +14,8 @@ interface Publisher {
   name: string;
 }
 
-interface TerritorySettingsType {
-  expiration_days: number;
+interface AppSettingsType {
+  territory_link_days: number;
 }
 
 interface AssignTerritoryDialogProps {
@@ -29,7 +28,7 @@ const AssignTerritoryDialog: React.FC<AssignTerritoryDialogProps> = ({ territory
   const [publishers, setPublishers] = useState<Publisher[]>([]);
   const [selectedPublisherId, setSelectedPublisherId] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [territorySettings, setTerritorySettings] = useState<TerritorySettingsType>({ expiration_days: 30 });
+  const [appSettings, setAppSettings] = useState<AppSettingsType>({ territory_link_days: 30 });
 
   useEffect(() => {
     const fetchPublishers = async () => {
@@ -45,25 +44,25 @@ const AssignTerritoryDialog: React.FC<AssignTerritoryDialogProps> = ({ territory
       setPublishers(data || []);
     };
 
-    const fetchTerritorySettings = async () => {
+    const fetchAppSettings = async () => {
       const { data, error } = await supabase
-        .from("territory_settings")
-        .select("expiration_days")
+        .from("app_settings")
+        .select("territory_link_days")
         .single();
 
       if (error) {
-        console.error("Error loading territory settings:", error);
+        console.error("Error loading app settings:", error);
         return;
       }
 
       if (data) {
-        setTerritorySettings(data);
+        setAppSettings(data);
       }
     };
 
     if (open) {
       fetchPublishers();
-      fetchTerritorySettings();
+      fetchAppSettings();
     }
   }, [open]);
 
@@ -76,7 +75,7 @@ const AssignTerritoryDialog: React.FC<AssignTerritoryDialogProps> = ({ territory
     setLoading(true);
 
     const expiresAt = format(
-      addDays(new Date(), territorySettings.expiration_days),
+      addDays(new Date(), appSettings.territory_link_days),
       "yyyy-MM-dd"
     );
 
@@ -138,7 +137,7 @@ const AssignTerritoryDialog: React.FC<AssignTerritoryDialogProps> = ({ territory
           </div>
           <div>
             <p className="text-sm text-muted-foreground">
-              El territorio será asignado por {territorySettings.expiration_days} días según la 
+              El territorio será asignado por {appSettings.territory_link_days} días según la 
               configuración actual.
             </p>
           </div>
