@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,7 +45,6 @@ const PublicTerritory = () => {
           return;
         }
 
-        // Check if territory has expired
         const isExpired = 
           !data.expires_at || 
           new Date(data.expires_at) < new Date() || 
@@ -85,18 +83,19 @@ const PublicTerritory = () => {
 
   if (loading) {
     return (
-      <div className="container py-8 max-w-4xl mx-auto space-y-6">
-        <Skeleton className="h-8 w-3/4 mb-4" />
-        <Skeleton className="h-6 w-1/2 mb-2" />
-        <Skeleton className="h-6 w-1/3 mb-8" />
-        <Skeleton className="h-[600px] w-full rounded-lg" />
+      <div className="min-h-screen flex flex-col">
+        <div className="container py-4">
+          <Skeleton className="h-6 w-1/3 mb-2" />
+          <Skeleton className="h-4 w-1/4 mb-2" />
+        </div>
+        <Skeleton className="flex-1" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="container py-8 max-w-4xl mx-auto">
+      <div className="container py-4">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
@@ -108,7 +107,7 @@ const PublicTerritory = () => {
 
   if (!territoryData) {
     return (
-      <div className="container py-8 max-w-4xl mx-auto">
+      <div className="container py-4">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Territorio no encontrado</AlertTitle>
@@ -121,62 +120,60 @@ const PublicTerritory = () => {
   const daysRemaining = territoryData.expires_at ? getDaysRemaining(territoryData.expires_at) : null;
 
   return (
-    <div className="container py-8 max-w-4xl mx-auto space-y-6">
-      <h1 className="text-3xl font-semibold">Territorio: {territoryData.territory_name}</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="flex items-center gap-2">
-          <Info className="h-5 w-5 text-muted-foreground" />
-          <span>Asignado a: <span className="font-semibold">{territoryData.publisher_name}</span></span>
+    <div className="min-h-screen flex flex-col">
+      <div className="container py-4">
+        <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-2">
+          <h1 className="text-xl font-semibold">Territorio: {territoryData.territory_name}</h1>
+          
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Info className="h-4 w-4" />
+            <span>Asignado a: <span className="font-medium">{territoryData.publisher_name}</span></span>
+          </div>
         </div>
 
-        {territoryData.expires_at && (
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-muted-foreground" />
-            <span>Fecha de vencimiento: <span className="font-semibold">{formatDate(territoryData.expires_at)}</span></span>
-          </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+          {territoryData.expires_at && (
+            <>
+              <Calendar className="h-4 w-4" />
+              <span>Fecha de vencimiento: <span className="font-medium">{formatDate(territoryData.expires_at)}</span></span>
+            </>
+          )}
+        </div>
+
+        {daysRemaining !== null && !territoryData.is_expired && (
+          <Alert className={`${daysRemaining < 7 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-green-500 bg-green-50 text-green-800"} mb-4`}>
+            <Calendar className="h-4 w-4" />
+            <AlertTitle>
+              {daysRemaining === 0 
+                ? "¡El territorio vence hoy!" 
+                : `Faltan ${daysRemaining} días para el vencimiento`}
+            </AlertTitle>
+          </Alert>
+        )}
+
+        {territoryData.is_expired && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Territorio caducado</AlertTitle>
+            <AlertDescription>
+              Este territorio ha expirado. Por favor, solicite otro territorio.
+            </AlertDescription>
+          </Alert>
         )}
       </div>
 
-      {daysRemaining !== null && !territoryData.is_expired && (
-        <Alert className={daysRemaining < 7 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-green-500 bg-green-50 text-green-800"}>
-          <Calendar className="h-4 w-4" />
-          <AlertTitle>
-            {daysRemaining === 0 
-              ? "¡El territorio vence hoy!" 
-              : `Faltan ${daysRemaining} días para el vencimiento`}
-          </AlertTitle>
-        </Alert>
-      )}
-
-      {territoryData.is_expired && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Territorio caducado</AlertTitle>
-          <AlertDescription>
-            Este territorio ha expirado. Por favor, solicite otro territorio.
-          </AlertDescription>
-        </Alert>
-      )}
-
       {!territoryData.is_expired && territoryData.google_maps_link && (
-        <div className="border rounded-lg overflow-hidden mt-4">
-          <h2 className="p-4 bg-muted font-medium flex items-center gap-2">
-            <Map className="h-5 w-5" /> 
-            Mapa del territorio
-          </h2>
-          <div className="aspect-[4/3] w-full">
-            <iframe
-              src={territoryData.google_maps_link}
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              allowFullScreen
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              title={`Mapa del territorio ${territoryData.territory_name}`}
-            ></iframe>
-          </div>
+        <div className="flex-1">
+          <iframe
+            src={territoryData.google_maps_link}
+            width="100%"
+            height="100%"
+            style={{ border: 0 }}
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            title={`Mapa del territorio ${territoryData.territory_name}`}
+          />
         </div>
       )}
     </div>
