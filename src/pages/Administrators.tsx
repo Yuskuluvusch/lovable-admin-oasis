@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -93,14 +94,17 @@ const Administrators = () => {
     }
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      // First, create the auth user
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: newAdmin.email,
         password: newAdmin.password,
+        email_confirm: true
       });
 
       if (authError) throw authError;
       if (!authData.user) throw new Error("No se pudo crear el usuario");
 
+      // Then create the administrator record
       const { data, error } = await supabase
         .from("administrators")
         .insert([
