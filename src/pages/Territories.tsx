@@ -36,7 +36,10 @@ const Territories = () => {
   const fetchTerritories = async () => {
     const { data, error } = await supabase
       .from("territories")
-      .select("*, zone:zones(name)")
+      .select(`
+        *,
+        zone:zones!inner(name)
+      `)
       .order("name");
     
     if (error) {
@@ -52,7 +55,7 @@ const Territories = () => {
       .from("assigned_territories")
       .select(`
         *,
-        publisher:publishers(name)
+        publisher:publishers!inner(name)
       `)
       .eq("status", "assigned");
     
@@ -61,7 +64,6 @@ const Territories = () => {
       console.error(error);
       return;
     }
-    
     setAssignments(data || []);
   };
 

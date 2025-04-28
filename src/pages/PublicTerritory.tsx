@@ -32,8 +32,8 @@ const PublicTerritory = () => {
           .from("assigned_territories")
           .select(`
             *,
-            territory:territories(name, google_maps_link),
-            publisher:publishers(name)
+            territory:territories!inner(name, google_maps_link),
+            publisher:publishers!inner(name)
           `)
           .eq("token", token)
           .single();
@@ -44,22 +44,16 @@ const PublicTerritory = () => {
           return;
         }
 
-        if (!data.territory || !data.publisher) {
-          setError("Datos del territorio incompletos.");
-          setLoading(false);
-          return;
-        }
-
         const isExpired = 
           !data.expires_at || 
           new Date(data.expires_at) < new Date() || 
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territory.name || "Territorio sin nombre",
+          territory_name: data.territory.name,
           google_maps_link: data.territory.google_maps_link,
           expires_at: data.expires_at,
-          publisher_name: data.publisher.name || "Sin asignar",
+          publisher_name: data.publisher.name,
           is_expired: isExpired
         });
 
