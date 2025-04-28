@@ -11,8 +11,10 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
+// Crear el contexto
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Crear el proveedor
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -33,7 +35,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -59,7 +63,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
         return true;
       }
-      
+
       return false;
     } catch (error: any) {
       toast({
@@ -89,5 +93,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isLoading,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
+
+// 🎯 Exportar el hook useAuth
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}
