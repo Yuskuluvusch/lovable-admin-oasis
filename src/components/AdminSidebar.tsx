@@ -1,10 +1,9 @@
-
 import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { LayoutDashboard, User, LogOut, Menu } from "lucide-react";
+import { LayoutDashboard, User, LogOut, Menu, Users } from "lucide-react";
 
 interface SidebarLinkProps {
   to: string;
@@ -39,7 +38,6 @@ const AdminSidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { currentUser, logout } = useAuth();
 
-  // Get user initials for avatar display
   const getUserInitials = () => {
     if (!currentUser) return "A";
     if (currentUser.email) {
@@ -48,7 +46,6 @@ const AdminSidebar = () => {
     return "A";
   };
 
-  // Get display name for the user
   const getDisplayName = () => {
     if (!currentUser) return "";
     return currentUser.email || "";
@@ -95,6 +92,12 @@ const AdminSidebar = () => {
         </SidebarLink>
         <SidebarLink to="/administrators" icon={<User size={20} />} isCollapsed={isCollapsed}>
           Administradores
+        </SidebarLink>
+        <SidebarLink to="/publishers" icon={<Users size={20} />} isCollapsed={isCollapsed}>
+          Publicadores
+        </SidebarLink>
+        <SidebarLink to="/publisher-roles" icon={<User size={20} />} isCollapsed={isCollapsed}>
+          Roles
         </SidebarLink>
       </div>
 

@@ -10,6 +10,8 @@ import AdminLayout from "@/components/AdminLayout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Administrators from "./pages/Administrators";
+import Publishers from "./pages/Publishers";
+import PublisherRoles from "./pages/PublisherRoles";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +37,8 @@ const App = () => (
             >
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/administrators" element={<Administrators />} />
+              <Route path="/publishers" element={<Publishers />} />
+              <Route path="/publisher-roles" element={<PublisherRoles />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
