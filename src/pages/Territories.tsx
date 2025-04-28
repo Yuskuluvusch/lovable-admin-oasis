@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Calendar, Map, AlertTriangle, Info } from "lucide-react";
+import { Calendar, AlertTriangle, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const PublicTerritory = () => {
@@ -33,8 +34,8 @@ const PublicTerritory = () => {
           .select(`
             expires_at, 
             status,
-            territories!inner (name, google_maps_link),
-            publishers!inner (name)
+            territories (name, google_maps_link),
+            publishers (name)
           `)
           .eq("token", token)
           .single();
@@ -51,10 +52,10 @@ const PublicTerritory = () => {
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territories.name || "Territorio sin nombre",
-          google_maps_link: data.territories.google_maps_link,
+          territory_name: data.territories?.name || "Territorio sin nombre",
+          google_maps_link: data.territories?.google_maps_link,
           expires_at: data.expires_at,
-          publisher_name: data.publishers.name || "Sin asignar",
+          publisher_name: data.publishers?.name || "Sin asignar",
           is_expired: isExpired
         });
 
