@@ -56,33 +56,21 @@ const Territories = () => {
   };
 
   const fetchAssignments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("assigned_territories")
-        .select("id, territory_id, publisher_id, assigned_at, expires_at, status, token, publisher:publisher_id(name)")
-        .eq("status", "assigned");
+  const { data, error } = await supabase
+    .from("assigned_territories")
+    .select("*")
+    .eq("status", "assigned");
 
-      if (error) {
-        toast.error("Error al cargar asignaciones");
-        console.error(error);
-        return;
-      }
+  if (error) {
+    toast.error("Error al cargar asignaciones");
+    console.error(error);
+    return;
+  }
 
-      setAssignments((data || []).map((item: any) => ({
-        id: item.id,
-        territory_id: item.territory_id,
-        publisher_id: item.publisher_id,
-        assigned_at: item.assigned_at,
-        expires_at: item.expires_at,
-        status: item.status,
-        token: item.token,
-        publisher: item.publisher ? { name: item.publisher.name } : undefined,
-      })));
-    } catch (err) {
-      console.error("Error en fetchAssignments:", err);
-      toast.error("Error al cargar asignaciones");
-    }
-  };
+  setAssignments(data || []);
+};
+
+    
 
   const fetchAll = () => {
     fetchZones();
