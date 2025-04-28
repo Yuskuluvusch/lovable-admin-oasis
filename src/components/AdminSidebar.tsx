@@ -9,6 +9,7 @@ import {
   Map,
   MapPin,
   LogOut,
+  BarChart,
 } from "lucide-react";
 
 const AdminSidebar = () => {
@@ -56,6 +57,13 @@ const AdminSidebar = () => {
           <Button variant="ghost" className="w-full justify-start text-white hover:text-white hover:bg-slate-700">
             <MapPin className="mr-2 h-4 w-4" />
             Territorios
+          </Button>
+        </Link>
+
+        <Link to="/estadisticas">
+          <Button variant="ghost" className="w-full justify-start text-white hover:text-white hover:bg-slate-700">
+            <BarChart className="mr-2 h-4 w-4" />
+            Estadísticas
           </Button>
         </Link>
 

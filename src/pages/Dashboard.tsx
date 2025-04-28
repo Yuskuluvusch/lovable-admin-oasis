@@ -3,12 +3,18 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, MapPin } from "lucide-react";
+import { TerritoryStatistics } from "@/types/territory-types";
 
 const Dashboard = () => {
   const { currentUser } = useAuth();
   const [adminCount, setAdminCount] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [territoryStats, setTerritoryStats] = useState<TerritoryStatistics>({
+    total: 0,
+    assigned: 0,
+    available: 0
+  });
 
   // Get display name for the user, fallback to email or "Admin"
   const getDisplayName = () => {
@@ -17,27 +23,55 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    const fetchAdminCount = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        const { count, error } = await supabase
+        
+        // Fetch admin count
+        const { count: adminCount, error: adminError } = await supabase
           .from("administrators")
           .select("*", { count: "exact" });
 
-        if (error) {
-          console.error("Error fetching admin count:", error);
+        if (adminError) {
+          console.error("Error fetching admin count:", adminError);
+          return;
+        }
+        
+        // Get total count of territories
+        const { count: totalTerritories, error: totalError } = await supabase
+          .from("territories")
+          .select("*", { count: "exact" });
+        
+        if (totalError) {
+          console.error("Error fetching territories count:", totalError);
           return;
         }
 
-        setAdminCount(count || 0);
+        // Get count of assigned territories
+        const { count: assignedTerritories, error: assignedError } = await supabase
+          .from("assigned_territories")
+          .select("*", { count: "exact" })
+          .eq("status", "assigned");
+        
+        if (assignedError) {
+          console.error("Error fetching assigned territories:", assignedError);
+          return;
+        }
+
+        setAdminCount(adminCount || 0);
+        setTerritoryStats({
+          total: totalTerritories || 0,
+          assigned: assignedTerritories || 0,
+          available: (totalTerritories || 0) - (assignedTerritories || 0)
+        });
       } catch (error) {
-        console.error("Error fetching admin count:", error);
+        console.error("Error fetching dashboard data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchAdminCount();
+    fetchData();
   }, []);
 
   return (
@@ -71,36 +105,54 @@ const Dashboard = () => {
         <Card className="office-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Usuarios Activos
+              Total Territorios
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1</div>
+            {isLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">Cargando...</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-bold">{territoryStats.total}</div>
+            )}
           </CardContent>
         </Card>
 
         <Card className="office-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Accesos Hoy
+              Territorios Asignados
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            {isLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">Cargando...</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-bold">{territoryStats.assigned}</div>
+            )}
           </CardContent>
         </Card>
 
         <Card className="office-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Estado del Sistema
+              Territorios Disponibles
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center">
-              <div className="h-3 w-3 rounded-full bg-green-500 mr-2"></div>
-              <span className="text-sm font-medium">Activo</span>
-            </div>
+            {isLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">Cargando...</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-bold">{territoryStats.available}</div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -34,3 +34,19 @@ export type AppSettings = {
   created_at: string;
   updated_at: string;
 };
+
+export type TerritoryStatistics = {
+  total: number;
+  assigned: number;
+  available: number;
+};
+
+export type TerritoryHistory = {
+  id: string;
+  territory_id: string;
+  publisher_id: string;
+  publisher_name: string;
+  assigned_at: string;
+  expires_at: string | null;
+  status: string | null;
+};

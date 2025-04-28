@@ -15,6 +15,8 @@ import PublisherRoles from "./pages/PublisherRoles";
 import Zones from "./pages/Zones";
 import Territories from "./pages/Territories";
 import PublicTerritory from "./pages/PublicTerritory";
+import Statistics from "./pages/Statistics";
+import TerritoryDetail from "./pages/TerritoryDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +49,8 @@ const App = () => (
               <Route path="/publisher-roles" element={<PublisherRoles />} />
               <Route path="/zones" element={<Zones />} />
               <Route path="/territories" element={<Territories />} />
+              <Route path="/estadisticas" element={<Statistics />} />
+              <Route path="/estadisticas/:territoryId" element={<TerritoryDetail />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
