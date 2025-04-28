@@ -107,7 +107,7 @@ const Administrators = () => {
       
       console.log("Creating new admin with email:", newAdmin.email);
       
-      // 1. Create the auth user using the admin client
+      // 1. Create the auth user using the admin client with proper service role
       const { data: authData, error: authError } = await adminAuthClient.auth.admin.createUser({
         email: newAdmin.email,
         password: newAdmin.password,
@@ -119,7 +119,7 @@ const Administrators = () => {
         throw authError;
       }
 
-      if (!authData.user) {
+      if (!authData?.user) {
         throw new Error("No se pudo crear el usuario de autenticación");
       }
       
