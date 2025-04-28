@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,7 +102,7 @@ const Territories = () => {
         .from("assigned_territories")
         .select(`
           id, territory_id, publisher_id, assigned_at, expires_at, status, token,
-          publishers(name)
+          publishers!assigned_territories_publisher_id_fkey(name)
         `)
         .eq("status", "assigned");
 
