@@ -27,3 +27,10 @@ export type TerritoryAssignment = {
     name: string;
   };
 };
+
+export type TerritorySettings = {
+  id: number;
+  expiration_days: number;
+  created_at: string;
+  updated_at: string;
+};

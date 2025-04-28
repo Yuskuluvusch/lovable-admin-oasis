@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,11 +96,9 @@ const Territories = () => {
       .from("assigned_territories")
       .select(`
         *,
-        publisher:publisher_id (
-          name
-        )
+        publisher:publishers(name)
       `)
-      .is("status", "assigned");
+      .eq("status", "assigned");
 
     if (error) {
       toast.error("Error al cargar asignaciones");

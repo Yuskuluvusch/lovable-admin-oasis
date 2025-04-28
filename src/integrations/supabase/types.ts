@@ -175,6 +175,27 @@ export type Database = {
           },
         ]
       }
+      territory_settings: {
+        Row: {
+          created_at: string
+          expiration_days: number
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expiration_days?: number
+          id: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expiration_days?: number
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       zones: {
         Row: {
           created_at: string

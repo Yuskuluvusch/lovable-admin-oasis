@@ -21,7 +21,7 @@ import {
 import { UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Territory } from "../../types/territory-types";
+import { Territory, TerritorySettings } from "../../types/territory-types";
 import { addDays, format } from "date-fns";
 
 interface Publisher {
@@ -66,13 +66,12 @@ const AssignTerritoryDialog = ({ territory, onAssign }: AssignTerritoryDialogPro
   const fetchExpirationDays = async () => {
     const { data, error } = await supabase
       .from("territory_settings")
-      .select("expiration_days")
+      .select("*")
       .single();
 
     if (data) {
       setExpirationDays(data.expiration_days);
     } else if (error && error.code !== "PGRST116") {
-      // PGRST116 is "no rows returned" - this is expected if no config exists yet
       console.error("Error fetching territory settings:", error);
     }
   };

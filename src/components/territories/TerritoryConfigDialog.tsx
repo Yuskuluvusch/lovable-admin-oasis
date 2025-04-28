@@ -15,23 +15,22 @@ import { Label } from "@/components/ui/label";
 import { Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { TerritorySettings } from "@/types/territory-types";
 
 const TerritoryConfigDialog = () => {
   const [expirationDays, setExpirationDays] = useState<string>("30");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch the current configuration when the component mounts
   useEffect(() => {
     const fetchConfig = async () => {
       const { data, error } = await supabase
         .from("territory_settings")
-        .select("expiration_days")
+        .select("*")
         .single();
 
       if (data) {
         setExpirationDays(String(data.expiration_days));
       } else if (error && error.code !== "PGRST116") {
-        // PGRST116 is "no rows returned" - this is expected if no config exists yet
         console.error("Error fetching territory settings:", error);
       }
     };
@@ -49,11 +48,12 @@ const TerritoryConfigDialog = () => {
       return;
     }
 
-    // Use upsert to either update existing record or insert a new one
     const { error } = await supabase
       .from("territory_settings")
-      .upsert({ id: 1, expiration_days: days })
-      .select();
+      .upsert({ 
+        id: 1,
+        expiration_days: days 
+      });
 
     if (error) {
       toast.error("Error al guardar la configuración");
