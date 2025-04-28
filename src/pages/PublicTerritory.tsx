@@ -124,6 +124,7 @@ const PublicTerritory = () => {
       <div className="container py-4">
         <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-2">
           <h1 className="text-xl font-semibold">Territorio: {territoryData.territory_name}</h1>
+          
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Info className="h-4 w-4" />
             <span>Asignado a: <span className="font-medium">{territoryData.publisher_name}</span></span>
@@ -161,20 +162,19 @@ const PublicTerritory = () => {
         )}
       </div>
 
-{!territoryData.is_expired && territoryData.google_maps_link && (
-  <div className="w-full h-[80vh]">
-    <iframe
-      src={territoryData.google_maps_link}
-      width="100%"
-      height="100%"
-      style={{ border: 0 }}
-      allowFullScreen
-      loading="lazy"
-      title={`Mapa del territorio ${territoryData.territory_name}`}
-    />
-  </div>
-)}
-
+      {!territoryData.is_expired && territoryData.google_maps_link && (
+        <div className="w-full h-[80vh]">
+          <iframe
+            src={territoryData.google_maps_link}
+            width="100%"
+            height="100%"
+            style={{ border: 0 }}
+            allowFullScreen
+            loading="lazy"
+            title={`Mapa del territorio ${territoryData.territory_name}`}
+          />
+        </div>
+      )}
     </div>
   );
 };
