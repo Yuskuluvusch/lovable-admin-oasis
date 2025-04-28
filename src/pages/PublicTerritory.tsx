@@ -34,18 +34,20 @@ const PublicTerritory = () => {
           .select(`
             expires_at, 
             status,
-            territories (name, google_maps_link),
-            publishers (name)
+            territories(name, google_maps_link),
+            publishers(name)
           `)
           .eq("token", token)
           .single();
 
         if (fetchError || !data) {
+          console.error("Error from Supabase:", fetchError);
           setError("Territorio no encontrado o enlace inválido.");
           setLoading(false);
           return;
         }
 
+        // El tipo de data ahora debe ser correcto gracias a las relaciones FK
         const isExpired = 
           !data.expires_at || 
           new Date(data.expires_at) < new Date() || 
