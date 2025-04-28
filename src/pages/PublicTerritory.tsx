@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Calendar, AlertTriangle, Info } from "lucide-react";
+import { Calendar, Map, AlertTriangle, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const PublicTerritory = () => {
@@ -31,15 +31,15 @@ const PublicTerritory = () => {
         const { data, error: fetchError } = await supabase
           .from("assigned_territories")
           .select(`
-            *,
-            territory:territories(name, google_maps_link),
-            publisher:publishers(name)
+            expires_at, 
+            status,
+            territory:territories!inner(name, google_maps_link),
+            publisher:publishers!inner(name)
           `)
           .eq("token", token)
           .single();
 
         if (fetchError || !data) {
-          console.error("Error from Supabase:", fetchError);
           setError("Territorio no encontrado o enlace inválido.");
           setLoading(false);
           return;
@@ -51,10 +51,10 @@ const PublicTerritory = () => {
           data.status !== "assigned";
 
         setTerritoryData({
-          territory_name: data.territory?.name || "Territorio sin nombre",
-          google_maps_link: data.territory?.google_maps_link,
+          territory_name: data.territory.name || "Territorio sin nombre",
+          google_maps_link: data.territory.google_maps_link,
           expires_at: data.expires_at,
-          publisher_name: data.publisher?.name || "Sin asignar",
+          publisher_name: data.publisher.name || "Sin asignar",
           is_expired: isExpired
         });
 
@@ -83,7 +83,7 @@ const PublicTerritory = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-screen">
+      <div className="min-h-screen flex flex-col">
         <div className="container py-4">
           <Skeleton className="h-6 w-1/3 mb-2" />
           <Skeleton className="h-4 w-1/4 mb-2" />
@@ -120,10 +120,10 @@ const PublicTerritory = () => {
   const daysRemaining = territoryData.expires_at ? getDaysRemaining(territoryData.expires_at) : null;
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="container py-2">
-        <div className="flex flex-col space-y-1 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-1">
-          <h1 className="text-lg font-semibold">Territorio: {territoryData.territory_name}</h1>
+    <div className="min-h-screen flex flex-col">
+      <div className="container py-4">
+        <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-2">
+          <h1 className="text-xl font-semibold">Territorio: {territoryData.territory_name}</h1>
           
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Info className="h-4 w-4" />
@@ -131,7 +131,7 @@ const PublicTerritory = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
           {territoryData.expires_at && (
             <>
               <Calendar className="h-4 w-4" />
@@ -141,7 +141,7 @@ const PublicTerritory = () => {
         </div>
 
         {daysRemaining !== null && !territoryData.is_expired && (
-          <Alert className={`${daysRemaining < 7 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-green-500 bg-green-50 text-green-800"} mb-2 py-2`}>
+          <Alert className={`${daysRemaining < 7 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-green-500 bg-green-50 text-green-800"} mb-4`}>
             <Calendar className="h-4 w-4" />
             <AlertTitle>
               {daysRemaining === 0 
@@ -152,7 +152,7 @@ const PublicTerritory = () => {
         )}
 
         {territoryData.is_expired && (
-          <Alert variant="destructive" className="mb-2">
+          <Alert variant="destructive" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Territorio caducado</AlertTitle>
             <AlertDescription>
@@ -168,7 +168,7 @@ const PublicTerritory = () => {
             src={territoryData.google_maps_link}
             width="100%"
             height="100%"
-            style={{ border: 0, minHeight: "calc(100vh - 120px)" }}
+            style={{ border: 0 }}
             allowFullScreen
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"

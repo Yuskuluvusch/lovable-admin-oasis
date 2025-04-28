@@ -1,184 +1,247 @@
-
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Plus, MapPin, Trash2, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { differenceInDays, format } from "date-fns";
-import { es } from "date-fns/locale";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Calendar, AlertTriangle, Info } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { differenceInDays } from "date-fns";
+import { Zone, Territory, TerritoryAssignment } from "../types/territory-types";
+import EditTerritoryDialog from "../components/territories/EditTerritoryDialog";
+import AssignTerritoryDialog from "../components/territories/AssignTerritoryDialog";
+import TerritoryConfigDialog from "../components/territories/TerritoryConfigDialog";
 
-const PublicTerritory = () => {
-  const { token } = useParams();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [territoryData, setTerritoryData] = useState<{
-    territory_name: string;
-    google_maps_link: string | null;
-    expires_at: string | null;
-    publisher_name: string;
-    is_expired: boolean;
-  } | null>(null);
+const Territories = () => {
+  const [territories, setTerritories] = useState<Territory[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [assignments, setAssignments] = useState<TerritoryAssignment[]>([]);
+  const [selectedZone, setSelectedZone] = useState<string>("all");
+  const [newTerritory, setNewTerritory] = useState({ name: "", zone_id: "", google_maps_link: "" });
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchZones = async () => {
+    const { data, error } = await supabase.from("zones").select("id, name").order("name");
+    if (error) {
+      toast.error("Error al cargar zonas");
+      console.error(error);
+      return;
+    }
+    setZones(data || []);
+  };
+
+  const fetchTerritories = async () => {
+    const { data, error } = await supabase
+      .from("territories")
+      .select("*, zone:zones!inner(name)")
+      .order("name");
+    
+    if (error) {
+      toast.error("Error al cargar territorios");
+      console.error(error);
+      return;
+    }
+    setTerritories(data || []);
+  };
+
+  const fetchAssignments = async () => {
+    const { data, error } = await supabase
+      .from("assigned_territories")
+      .select("*, publisher:publishers!inner(name)")
+      .eq("status", "assigned");
+    
+    if (error) {
+      toast.error("Error al cargar asignaciones");
+      console.error(error);
+      return;
+    }
+    
+    setAssignments(data || []);
+  };
+
+  const fetchAll = () => {
+    fetchZones();
+    fetchTerritories();
+    fetchAssignments();
+  };
 
   useEffect(() => {
-    const fetchTerritoryByToken = async () => {
-      if (!token) {
-        setError("Token no proporcionado");
-        setLoading(false);
-        return;
-      }
+    fetchAll();
+  }, []);
 
-      try {
-        const { data, error: fetchError } = await supabase
-          .from("assigned_territories")
-          .select(`
-            *,
-            territory:territories(name, google_maps_link),
-            publisher:publishers(name)
-          `)
-          .eq("token", token)
-          .single();
+  const filteredTerritories = selectedZone === "all"
+    ? territories
+    : territories.filter((t) => t.zone_id === selectedZone);
 
-        if (fetchError || !data) {
-          console.error("Error from Supabase:", fetchError);
-          setError("Territorio no encontrado o enlace inválido.");
-          setLoading(false);
-          return;
-        }
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTerritory.name.trim()) return;
 
-        const isExpired = 
-          !data.expires_at || 
-          new Date(data.expires_at) < new Date() || 
-          data.status !== "assigned";
-
-        setTerritoryData({
-          territory_name: data.territory?.name || "Territorio sin nombre",
-          google_maps_link: data.territory?.google_maps_link,
-          expires_at: data.expires_at,
-          publisher_name: data.publisher?.name || "Sin asignar",
-          is_expired: isExpired
-        });
-
-        setLoading(false);
-
-      } catch (err) {
-        console.error("Error fetching territory:", err);
-        setError("Error al cargar datos del territorio");
-        setLoading(false);
-      }
-    };
-
-    fetchTerritoryByToken();
-  }, [token]);
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "Fecha no disponible";
-    return format(new Date(dateString), "d 'de' MMMM 'de' yyyy", { locale: es });
+    setIsLoading(true);
+    const { error } = await supabase.from("territories").insert([{ ...newTerritory }]);
+    if (error) {
+      toast.error("Error al crear territorio");
+      console.error(error);
+    } else {
+      toast.success("Territorio creado");
+      setNewTerritory({ name: "", zone_id: "", google_maps_link: "" });
+      fetchTerritories();
+    }
+    setIsLoading(false);
   };
 
-  const getDaysRemaining = (expiryDate: string | null) => {
-    if (!expiryDate) return null;
-    const days = differenceInDays(new Date(expiryDate), new Date());
-    return days > 0 ? days : 0;
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("territories").delete().eq("id", id);
+    if (error) {
+      toast.error("Error al eliminar territorio");
+      console.error(error);
+    } else {
+      toast.success("Territorio eliminado");
+      fetchAll();
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col h-screen">
-        <div className="container py-4">
-          <Skeleton className="h-6 w-1/3 mb-2" />
-          <Skeleton className="h-4 w-1/4 mb-2" />
-        </div>
-        <Skeleton className="flex-1" />
-      </div>
-    );
-  }
+  const getAssignment = (territoryId: string) => assignments.find((a) => a.territory_id === territoryId);
 
-  if (error) {
-    return (
-      <div className="container py-4">
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  const getDaysRemaining = (expireDate: string | null) => expireDate ? Math.max(differenceInDays(new Date(expireDate), new Date()), 0) : null;
 
-  if (!territoryData) {
-    return (
-      <div className="container py-4">
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Territorio no encontrado</AlertTitle>
-          <AlertDescription>El enlace proporcionado no es válido o ha expirado.</AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  const daysRemaining = territoryData.expires_at ? getDaysRemaining(territoryData.expires_at) : null;
+  const copyPublicLink = (token: string) => {
+    const link = `${window.location.origin}/territorio/${token}`;
+    navigator.clipboard.writeText(link);
+    toast.success("Enlace copiado al portapapeles");
+  };
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="container py-2">
-        <div className="flex flex-col space-y-1 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-1">
-          <h1 className="text-lg font-semibold">Territorio: {territoryData.territory_name}</h1>
-          
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Info className="h-4 w-4" />
-            <span>Asignado a: <span className="font-medium">{territoryData.publisher_name}</span></span>
-          </div>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Territorios</h1>
+          <p className="text-muted-foreground mt-2">Gestiona territorios y asignaciones.</p>
         </div>
-
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          {territoryData.expires_at && (
-            <>
-              <Calendar className="h-4 w-4" />
-              <span>Fecha de vencimiento: <span className="font-medium">{formatDate(territoryData.expires_at)}</span></span>
-            </>
-          )}
-        </div>
-
-        {daysRemaining !== null && !territoryData.is_expired && (
-          <Alert className={`${daysRemaining < 7 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-green-500 bg-green-50 text-green-800"} mb-2 py-2`}>
-            <Calendar className="h-4 w-4" />
-            <AlertTitle>
-              {daysRemaining === 0 
-                ? "¡El territorio vence hoy!" 
-                : `Faltan ${daysRemaining} días para el vencimiento`}
-            </AlertTitle>
-          </Alert>
-        )}
-
-        {territoryData.is_expired && (
-          <Alert variant="destructive" className="mb-2">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Territorio caducado</AlertTitle>
-            <AlertDescription>
-              Este territorio ha expirado. Por favor, solicite otro territorio.
-            </AlertDescription>
-          </Alert>
-        )}
+        <TerritoryConfigDialog />
       </div>
 
-      {!territoryData.is_expired && territoryData.google_maps_link && (
-        <div className="flex-1">
-          <iframe
-            src={territoryData.google_maps_link}
-            width="100%"
-            height="100%"
-            style={{ border: 0, minHeight: "calc(100vh - 120px)" }}
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            title={`Mapa del territorio ${territoryData.territory_name}`}
-          />
+      <div className="max-w-xs">
+        <Label>Filtrar por Zona</Label>
+        <Select value={selectedZone} onValueChange={setSelectedZone}>
+          <SelectTrigger>
+            <SelectValue placeholder="Selecciona una zona" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las zonas</SelectItem>
+            {zones.map((zone) => (
+              <SelectItem key={zone.id} value={zone.id}>{zone.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <form onSubmit={handleCreate} className="flex gap-4 items-end max-w-4xl">
+        <div className="flex-1 space-y-2">
+          <Label>Nombre del Territorio</Label>
+          <Input value={newTerritory.name} onChange={(e) => setNewTerritory({ ...newTerritory, name: e.target.value })} disabled={isLoading} />
         </div>
-      )}
+
+        <div className="flex-1 space-y-2">
+          <Label>Zona</Label>
+          <Select onValueChange={(value) => setNewTerritory({ ...newTerritory, zone_id: value })}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecciona una zona" />
+            </SelectTrigger>
+            <SelectContent>
+              {zones.map((zone) => (
+                <SelectItem key={zone.id} value={zone.id}>{zone.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex-1 space-y-2">
+          <Label>Link de Google Maps</Label>
+          <Input value={newTerritory.google_maps_link} onChange={(e) => setNewTerritory({ ...newTerritory, google_maps_link: e.target.value })} disabled={isLoading} />
+        </div>
+
+        <Button type="submit" disabled={isLoading}>
+          <Plus className="mr-2 h-4 w-4" /> Crear
+        </Button>
+      </form>
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Territorio</TableHead>
+              <TableHead>Zona</TableHead>
+              <TableHead>Asignado a</TableHead>
+              <TableHead>Días restantes</TableHead>
+              <TableHead className="w-[150px]">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredTerritories.map((territory) => {
+              const assignment = getAssignment(territory.id);
+              const daysRemaining = assignment ? getDaysRemaining(assignment.expires_at) : null;
+
+              return (
+                <TableRow key={territory.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {territory.name}
+                      {territory.google_maps_link && (
+                        <a href={territory.google_maps_link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">
+                          <MapPin className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>{territory.zone?.name || "Sin Zona"}</TableCell>
+                  <TableCell>{assignment?.publisher?.name || "-"}</TableCell>
+                  <TableCell>{daysRemaining !== null ? daysRemaining + " días" : "-"}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <EditTerritoryDialog territory={territory} zones={zones} onUpdate={fetchAll} />
+                      {!assignment && <AssignTerritoryDialog territory={territory} onAssign={fetchAll} />}
+                      {assignment && assignment.token && (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => copyPublicLink(assignment.token)}
+                          title="Copiar enlace público"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar?</AlertDialogTitle>
+                            <AlertDialogDescription>Esta acción eliminará el territorio.</AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(territory.id)} className="bg-red-600 hover:bg-red-700">
+                              Eliminar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 };
 
-export default PublicTerritory;
+export default Territories;
