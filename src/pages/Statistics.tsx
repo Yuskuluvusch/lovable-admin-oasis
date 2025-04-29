@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -90,9 +89,9 @@ const Statistics = () => {
       );
 
       // Transform and combine the data
-      const transformedTerritories = territoriesData.map((territory) => {
+      const transformedTerritories = territoriesData.map((territory: any) => {
         // Handle the potential error in the zone field
-        const zoneData = territory.zone && !territory.zone.error 
+        const zoneData = territory.zone && typeof territory.zone !== 'string' 
           ? territory.zone 
           : null;
 
@@ -101,11 +100,11 @@ const Statistics = () => {
           zone: zoneData,
           last_assigned_at: lastAssignedMap.get(territory.id) || null,
         };
-      });
+      }) as TerritorySafeData[];
 
       // Set territories with the transformed data
-      setTerritories(transformedTerritories as TerritorySafeData[]);
-      setFilteredTerritories(transformedTerritories as TerritorySafeData[]);
+      setTerritories(transformedTerritories);
+      setFilteredTerritories(transformedTerritories);
 
       // Calculate statistics
       setStats({

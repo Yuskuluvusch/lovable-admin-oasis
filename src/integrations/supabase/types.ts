@@ -67,6 +67,7 @@ export type Database = {
           expires_at: string | null
           id: string
           publisher_id: string
+          returned_at: string | null
           status: string | null
           territory_id: string
           token: string
@@ -78,6 +79,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           publisher_id: string
+          returned_at?: string | null
           status?: string | null
           territory_id: string
           token?: string
@@ -89,6 +91,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           publisher_id?: string
+          returned_at?: string | null
           status?: string | null
           territory_id?: string
           token?: string

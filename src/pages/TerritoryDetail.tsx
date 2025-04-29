@@ -1,13 +1,14 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ArrowLeft, MapPin, Calendar, FileSpreadsheet } from "lucide-react";
+import { Loader2, ArrowLeft, MapPin, Calendar } from "lucide-react";
 import { Territory, TerritoryHistory, TerritorySafeData } from "@/types/territory-types";
-import * as XLSX from 'xlsx';
+import TerritoryDetailExport from "@/components/statistics/TerritoryDetailExport";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 const TerritoryDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -53,7 +54,7 @@ const TerritoryDetail = () => {
       }
 
       // Handle the potential error in the zone field
-      const zoneData = data.zone && !data.zone.error 
+      const zoneData = data.zone && typeof data.zone !== 'string'
         ? data.zone 
         : null;
 
@@ -75,7 +76,7 @@ const TerritoryDetail = () => {
       const { data, error } = await supabase
         .from("assigned_territories")
         .select(`
-          id, territory_id, publisher_id, assigned_at, expires_at, status, token,
+          id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
           publishers:publishers!assigned_territories_publisher_id_fkey(name)
         `)
         .eq("territory_id", territoryId)
@@ -86,13 +87,14 @@ const TerritoryDetail = () => {
         return;
       }
 
-      const historyData: TerritoryHistory[] = data.map((item) => ({
+      const historyData: TerritoryHistory[] = data.map((item: any) => ({
         id: item.id,
         territory_id: item.territory_id,
         publisher_id: item.publisher_id,
         publisher_name: item.publishers ? item.publishers.name : "Unknown",
         assigned_at: item.assigned_at,
         expires_at: item.expires_at,
+        returned_at: item.returned_at,
         status: item.status,
       }));
 
@@ -104,37 +106,9 @@ const TerritoryDetail = () => {
     }
   };
 
-  const handleExportExcel = () => {
-    if (!territory) return;
-
-    // Prepare data for export
-    const exportData = history.map(item => ({
-      'Territorio': territory.name,
-      'Publicador': item.publisher_name,
-      'Fecha de Asignación': new Date(item.assigned_at).toLocaleDateString(),
-      'Fecha de Expiración': item.expires_at ? new Date(item.expires_at).toLocaleDateString() : 'N/A',
-      'Estado': item.status === 'assigned' ? 'Asignado' : (item.status === 'returned' ? 'Devuelto' : item.status),
-    }));
-
-    // Create worksheet
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    
-    // Set column widths
-    const columnWidths = [
-      { wch: 20 }, // Territorio
-      { wch: 25 }, // Publicador
-      { wch: 20 }, // Fecha de Asignación
-      { wch: 20 }, // Fecha de Expiración
-      { wch: 15 }, // Estado
-    ];
-    worksheet['!cols'] = columnWidths;
-    
-    // Create workbook
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `Territorio ${territory.name}`);
-    
-    // Generate file and download
-    XLSX.writeFile(workbook, `Historial_Territorio_${territory.name}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "N/A";
+    return format(new Date(dateString), "dd MMM yyyy", { locale: es });
   };
 
   if (isLoading) {
@@ -170,24 +144,16 @@ const TerritoryDetail = () => {
           </Button>
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight flex items-center gap-2">
             <MapPin className="h-6 w-6" />
-            Territorio: {territory.name}
+            Territorio: {territory?.name}
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-2">
-            Zona: {territory.zone?.name || "Sin zona asignada"}
+            Zona: {territory?.zone?.name || "Sin zona asignada"}
           </p>
         </div>
-        <Button 
-          variant="outline" 
-          onClick={handleExportExcel}
-          disabled={history.length === 0}
-          className="w-full sm:w-auto"
-        >
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-          Exportar Historial
-        </Button>
+        <TerritoryDetailExport territory={territory} history={history} />
       </div>
 
-      {territory.google_maps_link && (
+      {territory?.google_maps_link && (
         <Card className="overflow-hidden">
           <CardHeader>
             <CardTitle className="text-xl">Mapa del Territorio</CardTitle>
@@ -228,6 +194,7 @@ const TerritoryDetail = () => {
                       <TableHead>Publicador</TableHead>
                       <TableHead>Fecha de Asignación</TableHead>
                       <TableHead>Fecha de Expiración</TableHead>
+                      <TableHead>Fecha de Devolución</TableHead>
                       <TableHead>Estado</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -238,12 +205,17 @@ const TerritoryDetail = () => {
                           {item.publisher_name}
                         </TableCell>
                         <TableCell>
-                          {new Date(item.assigned_at).toLocaleDateString()}
+                          {formatDate(item.assigned_at)}
                         </TableCell>
                         <TableCell>
                           {item.expires_at
-                            ? new Date(item.expires_at).toLocaleDateString()
+                            ? formatDate(item.expires_at)
                             : "No definida"}
+                        </TableCell>
+                        <TableCell>
+                          {item.returned_at
+                            ? formatDate(item.returned_at)
+                            : "No devuelto"}
                         </TableCell>
                         <TableCell>
                           <span

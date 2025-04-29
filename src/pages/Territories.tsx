@@ -225,14 +225,17 @@ const Territories = () => {
   const handleUnassignTerritory = async (assignmentId: string) => {
     const { error } = await supabase
       .from("assigned_territories")
-      .delete()
+      .update({
+        status: "returned",
+        returned_at: new Date().toISOString()
+      })
       .eq("id", assignmentId);
     
     if (error) {
-      toast.error("Error al desasignar territorio");
+      toast.error("Error al devolver territorio");
       console.error(error);
     } else {
-      toast.success("Territorio desasignado correctamente");
+      toast.success("Territorio devuelto correctamente");
       fetchAll();
     }
   };

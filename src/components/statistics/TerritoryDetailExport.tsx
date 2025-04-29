@@ -38,7 +38,8 @@ const TerritoryDetailExport = ({ territory, history }: TerritoryDetailExportProp
       'Zona': territory.zone?.name || 'Sin zona',
       'Publicador': record.publisher_name,
       'Fecha de asignación': formatDate(record.assigned_at),
-      'Fecha de devolución': record.status === "returned" ? formatDate(record.expires_at) : '—',
+      'Fecha de devolución': record.returned_at ? formatDate(record.returned_at) : '—',
+      'Fecha de expiración': record.expires_at ? formatDate(record.expires_at) : '—',
       'Estado': getStatus(record.status),
     }));
 
@@ -52,6 +53,7 @@ const TerritoryDetailExport = ({ territory, history }: TerritoryDetailExportProp
       { wch: 20 }, // Publicador
       { wch: 20 }, // Fecha asignación
       { wch: 20 }, // Fecha devolución
+      { wch: 20 }, // Fecha expiración
       { wch: 15 }  // Estado
     ];
     worksheet['!cols'] = columnWidths;
