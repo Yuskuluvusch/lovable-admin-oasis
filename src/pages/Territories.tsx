@@ -16,7 +16,7 @@ import EditTerritoryDialog from "../components/territories/EditTerritoryDialog";
 import AssignTerritoryDialog from "../components/territories/AssignTerritoryDialog";
 import TerritoryConfigDialog from "../components/territories/TerritoryConfigDialog";
 
-type SortField = 'name' | 'zone' | 'status' | 'last_assigned_at';
+type SortField = 'name' | 'zone' | 'status' | 'last_assigned_at' | 'last_returned_at' | 'inactive_time';
 
 const Territories = () => {
   const [territories, setTerritories] = useState<Territory[]>([]);
@@ -63,11 +63,13 @@ const Territories = () => {
         updated_at: item.updated_at,
         zone: item.zones ? { id: item.zones.id, name: item.zones.name } : undefined,
         last_assigned_at: null,
+        last_returned_at: null,
       }));
 
+      // Fetch assignment history
       const { data: assignmentsHistory, error: assignmentsError } = await supabase
         .from("assigned_territories")
-        .select("territory_id, assigned_at")
+        .select("territory_id, assigned_at, returned_at, status")
         .order("assigned_at", { ascending: false });
 
       if (assignmentsError) {
@@ -77,19 +79,31 @@ const Territories = () => {
         return;
       }
 
+      // Process territories with last assignment and last return dates
       const lastAssignmentMap = new Map<string, string>();
+      const lastReturnMap = new Map<string, string>();
+
       assignmentsHistory?.forEach(assignment => {
-        if (!lastAssignmentMap.has(assignment.territory_id)) {
-          lastAssignmentMap.set(assignment.territory_id, assignment.assigned_at);
+        const territoryId = assignment.territory_id;
+        
+        // Track last assignment date
+        if (!lastAssignmentMap.has(territoryId)) {
+          lastAssignmentMap.set(territoryId, assignment.assigned_at);
+        }
+        
+        // Track last return date
+        if (assignment.returned_at && !lastReturnMap.has(territoryId)) {
+          lastReturnMap.set(territoryId, assignment.returned_at);
         }
       });
 
-      const territoriesWithLastAssignment = transformedTerritories.map(territory => ({
+      const territoriesWithHistory = transformedTerritories.map(territory => ({
         ...territory,
         last_assigned_at: lastAssignmentMap.get(territory.id) || null,
+        last_returned_at: lastReturnMap.get(territory.id) || null,
       }));
 
-      setTerritories(territoriesWithLastAssignment);
+      setTerritories(territoriesWithHistory);
     } catch (err) {
       console.error("Error in fetchTerritories:", err);
       toast.error("Error al cargar territorios");
@@ -173,11 +187,38 @@ const Territories = () => {
           else if (b.last_assigned_at === null) comparison = -1;
           else comparison = (new Date(a.last_assigned_at)).getTime() - (new Date(b.last_assigned_at)).getTime();
           break;
-        case 'status':
+        case 'last_returned_at':
+          if (a.last_returned_at === null && b.last_returned_at === null) comparison = 0;
+          else if (a.last_returned_at === null) comparison = 1;
+          else if (b.last_returned_at === null) comparison = -1;
+          else comparison = (new Date(a.last_returned_at)).getTime() - (new Date(b.last_returned_at)).getTime();
+          break;
+        case 'inactive_time':
+          // Para "Más tiempo sin asignar", priorizamos territorios no asignados
           const isAssignedA = !!assignments.find(assignment => assignment.territory_id === a.id);
           const isAssignedB = !!assignments.find(assignment => assignment.territory_id === b.id);
+          
+          // Si uno está asignado y el otro no, el no asignado va primero
           if (isAssignedA !== isAssignedB) {
-            return isAssignedA ? -1 : 1;
+            return isAssignedA ? 1 : -1;
+          }
+          
+          // Si ambos están libres, comparamos por última devolución
+          if (!isAssignedA && !isAssignedB) {
+            if (a.last_returned_at === null && b.last_returned_at === null) comparison = 0;
+            else if (a.last_returned_at === null) comparison = 1;  // Sin historial va al final
+            else if (b.last_returned_at === null) comparison = -1; // Sin historial va al final
+            else comparison = (new Date(a.last_returned_at)).getTime() - (new Date(b.last_returned_at)).getTime();
+          } else {
+            // Si ambos están asignados, ordenar por orden alfabético
+            comparison = a.name.localeCompare(b.name);
+          }
+          break;
+        case 'status':
+          const isAssignedStatusA = !!assignments.find(assignment => assignment.territory_id === a.id);
+          const isAssignedStatusB = !!assignments.find(assignment => assignment.territory_id === b.id);
+          if (isAssignedStatusA !== isAssignedStatusB) {
+            return isAssignedStatusA ? -1 : 1;
           }
           if (a.last_assigned_at === null && b.last_assigned_at === null) comparison = 0;
           else if (a.last_assigned_at === null) comparison = 1;
@@ -257,10 +298,23 @@ const Territories = () => {
     return formatDistanceToNow(new Date(date), { addSuffix: true, locale: es });
   };
 
+  const formatLastReturned = (date: string | null) => {
+    if (!date) return "Sin devoluciones";
+    return formatDistanceToNow(new Date(date), { addSuffix: true, locale: es });
+  };
+
   const isLongUnassigned = (territory: Territory) => {
     if (getAssignment(territory.id)) return false;
-    if (!territory.last_assigned_at) return true;
-    const daysUnassigned = differenceInDays(new Date(), new Date(territory.last_assigned_at));
+    
+    // Si no hay registro de devolución, verificamos la asignación
+    if (!territory.last_returned_at) {
+      if (!territory.last_assigned_at) return true;
+      const daysUnassigned = differenceInDays(new Date(), new Date(territory.last_assigned_at));
+      return daysUnassigned > 90;
+    }
+    
+    // Si hay registro de devolución, lo usamos para el cálculo
+    const daysUnassigned = differenceInDays(new Date(), new Date(territory.last_returned_at));
     return daysUnassigned > 90; 
   };
 
@@ -314,6 +368,8 @@ const Territories = () => {
                   <SelectItem value="zone">Zona</SelectItem>
                   <SelectItem value="status">Estado</SelectItem>
                   <SelectItem value="last_assigned_at">Última asignación</SelectItem>
+                  <SelectItem value="last_returned_at">Último devuelto</SelectItem>
+                  <SelectItem value="inactive_time">Más tiempo sin asignar</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -339,8 +395,8 @@ const Territories = () => {
                         sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
                       )}
                     </TableHead>
-                    <TableHead className="cursor-pointer whitespace-nowrap" onClick={() => handleSortClick('last_assigned_at')}>
-                      Última asignación {sortField === 'last_assigned_at' && (
+                    <TableHead className="cursor-pointer whitespace-nowrap" onClick={() => handleSortClick('inactive_time')}>
+                      Última actividad {sortField === 'inactive_time' && (
                         sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
                       )}
                     </TableHead>
@@ -387,11 +443,21 @@ const Territories = () => {
                             )}
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span className={`text-xs ${longUnassigned ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
-                                {formatLastAssigned(territory.last_assigned_at)}
-                              </span>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">
+                                  Asignado: {formatLastAssigned(territory.last_assigned_at)}
+                                </span>
+                              </div>
+                              {territory.last_returned_at && (
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-4 w-4 text-amber-600" />
+                                  <span className={`text-xs ${longUnassigned ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+                                    Devuelto: {formatLastReturned(territory.last_returned_at)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
