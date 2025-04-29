@@ -120,7 +120,7 @@ const Statistics = () => {
   };
 
   const handleRowClick = (territoryId: string) => {
-    navigate(`/territory-detail/${territoryId}`);
+    navigate(`/estadisticas/${territoryId}`);
   };
 
   return (
