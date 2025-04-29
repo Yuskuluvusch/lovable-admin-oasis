@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -264,15 +263,15 @@ const Territories = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Territorios</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Territorios</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Administra y asigna territorios a los publicadores.
           </p>
         </div>
         <TerritoryConfigDialog />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
         <div className="md:col-span-2">
           <div className="flex flex-col sm:flex-row gap-2 items-end mb-4">
             <div className="w-full sm:w-48">
@@ -281,7 +280,7 @@ const Territories = () => {
                 value={selectedZone}
                 onValueChange={setSelectedZone}
               >
-                <SelectTrigger id="zone-filter">
+                <SelectTrigger id="zone-filter" className="w-full">
                   <SelectValue placeholder="Todas las zonas" />
                 </SelectTrigger>
                 <SelectContent>
@@ -299,7 +298,7 @@ const Territories = () => {
                 value={sortField}
                 onValueChange={(value) => handleSortClick(value as SortField)}
               >
-                <SelectTrigger id="sort-territories" className="flex justify-between items-center">
+                <SelectTrigger id="sort-territories" className="flex justify-between items-center w-full">
                   <SelectValue placeholder="Ordenar por" />
                   <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); toggleSortDirection(); }} className="ml-2 h-5 w-5">
                     {sortDirection === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
@@ -316,156 +315,158 @@ const Territories = () => {
           </div>
 
           <div className="border rounded-md overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="cursor-pointer" onClick={() => handleSortClick('name')}>
-                    Nombre {sortField === 'name' && (
-                      sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
-                    )}
-                  </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSortClick('zone')}>
-                    Zona {sortField === 'zone' && (
-                      sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
-                    )}
-                  </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSortClick('status')}>
-                    Estado {sortField === 'status' && (
-                      sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
-                    )}
-                  </TableHead>
-                  <TableHead className="cursor-pointer" onClick={() => handleSortClick('last_assigned_at')}>
-                    Última asignación {sortField === 'last_assigned_at' && (
-                      sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
-                    )}
-                  </TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedTerritories.length === 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      No hay territorios disponibles
-                    </TableCell>
+                    <TableHead className="cursor-pointer whitespace-nowrap" onClick={() => handleSortClick('name')}>
+                      Nombre {sortField === 'name' && (
+                        sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
+                      )}
+                    </TableHead>
+                    <TableHead className="cursor-pointer whitespace-nowrap" onClick={() => handleSortClick('zone')}>
+                      Zona {sortField === 'zone' && (
+                        sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
+                      )}
+                    </TableHead>
+                    <TableHead className="cursor-pointer whitespace-nowrap" onClick={() => handleSortClick('status')}>
+                      Estado {sortField === 'status' && (
+                        sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
+                      )}
+                    </TableHead>
+                    <TableHead className="cursor-pointer whitespace-nowrap" onClick={() => handleSortClick('last_assigned_at')}>
+                      Última asignación {sortField === 'last_assigned_at' && (
+                        sortDirection === 'asc' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />
+                      )}
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">Acciones</TableHead>
                   </TableRow>
-                ) : (
-                  sortedTerritories.map((territory) => {
-                    const assignment = getAssignment(territory.id);
-                    const isAssigned = !!assignment;
-                    const daysRemaining = isAssigned && assignment.expires_at ? getDaysRemaining(assignment.expires_at) : null;
-                    const isExpired = isAssigned && daysRemaining === 0;
-                    const longUnassigned = !isAssigned && isLongUnassigned(territory);
+                </TableHeader>
+                <TableBody>
+                  {sortedTerritories.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        No hay territorios disponibles
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    sortedTerritories.map((territory) => {
+                      const assignment = getAssignment(territory.id);
+                      const isAssigned = !!assignment;
+                      const daysRemaining = isAssigned && assignment.expires_at ? getDaysRemaining(assignment.expires_at) : null;
+                      const isExpired = isAssigned && daysRemaining === 0;
+                      const longUnassigned = !isAssigned && isLongUnassigned(territory);
 
-                    return (
-                      <TableRow key={territory.id} className={longUnassigned ? "bg-amber-50" : ""}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <MapPin size={16} className="text-muted-foreground" />
-                            <span>{territory.name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{territory.zone?.name || "Sin zona"}</TableCell>
-                        <TableCell>
-                          {isAssigned ? (
-                            <div className="flex flex-col">
-                              <span className={`text-sm ${isExpired ? "text-destructive" : "text-green-600"}`}>
-                                {isExpired ? "Expirado" : "Asignado"}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                {assignment.publisher?.name}
-                                {daysRemaining !== null && !isExpired && ` (${daysRemaining} días)`}
+                      return (
+                        <TableRow key={territory.id} className={longUnassigned ? "bg-amber-50" : ""}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <MapPin size={16} className="text-muted-foreground" />
+                              <span>{territory.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{territory.zone?.name || "Sin zona"}</TableCell>
+                          <TableCell>
+                            {isAssigned ? (
+                              <div className="flex flex-col">
+                                <span className={`text-sm ${isExpired ? "text-destructive" : "text-green-600"}`}>
+                                  {isExpired ? "Expirado" : "Asignado"}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {assignment.publisher?.name}
+                                  {daysRemaining !== null && !isExpired && ` (${daysRemaining} días)`}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-amber-600">Disponible</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              <span className={`text-xs ${longUnassigned ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+                                {formatLastAssigned(territory.last_assigned_at)}
                               </span>
                             </div>
-                          ) : (
-                            <span className="text-sm text-amber-600">Disponible</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span className={`text-xs ${longUnassigned ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
-                              {formatLastAssigned(territory.last_assigned_at)}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <EditTerritoryDialog territory={territory} zones={zones} onUpdate={fetchTerritories} />
-                            
-                            {!isAssigned ? (
-                              <AssignTerritoryDialog territory={territory} onAssign={fetchAll} />
-                            ) : (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => copyPublicLink(assignment.token)}
-                                  title="Copiar enlace"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                                
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="text-amber-600" title="Desasignar territorio">
-                                      <Unlink className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>¿Desasignar territorio?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        El territorio será desasignado del publicador {assignment.publisher?.name}. 
-                                        El territorio no será eliminado y quedará disponible para una nueva asignación.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction 
-                                        className="bg-amber-600 text-white hover:bg-amber-700"
-                                        onClick={() => handleUnassignTerritory(assignment.id)}
-                                      >
-                                        Desasignar
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </>
-                            )}
-                            
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>¿Eliminar territorio?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Esta acción no se puede deshacer. Se eliminará el territorio permanentemente.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    onClick={() => handleDelete(territory.id)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <EditTerritoryDialog territory={territory} zones={zones} onUpdate={fetchTerritories} />
+                              
+                              {!isAssigned ? (
+                                <AssignTerritoryDialog territory={territory} onAssign={fetchAll} />
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => copyPublicLink(assignment.token)}
+                                    title="Copiar enlace"
                                   >
-                                    Eliminar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                  
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" className="text-amber-600" title="Desasignar territorio">
+                                        <Unlink className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>¿Desasignar territorio?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          El territorio será desasignado del publicador {assignment.publisher?.name}. 
+                                          El territorio no será eliminado y quedar�� disponible para una nueva asignación.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction 
+                                          className="bg-amber-600 text-white hover:bg-amber-700"
+                                          onClick={() => handleUnassignTerritory(assignment.id)}
+                                        >
+                                          Desasignar
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </>
+                              )}
+                              
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar territorio?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta acción no se puede deshacer. Se eliminará el territorio permanentemente.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      onClick={() => handleDelete(territory.id)}
+                                    >
+                                      Eliminar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </div>
 
@@ -481,6 +482,7 @@ const Territories = () => {
                 placeholder="Nombre del territorio"
                 disabled={isLoading}
                 required
+                className="w-full"
               />
             </div>
             
@@ -491,7 +493,7 @@ const Territories = () => {
                 onValueChange={(value) => setNewTerritory({ ...newTerritory, zone_id: value })}
                 disabled={isLoading}
               >
-                <SelectTrigger id="territory-zone">
+                <SelectTrigger id="territory-zone" className="w-full">
                   <SelectValue placeholder="Seleccionar zona" />
                 </SelectTrigger>
                 <SelectContent>
@@ -512,6 +514,7 @@ const Territories = () => {
                 onChange={(e) => setNewTerritory({ ...newTerritory, google_maps_link: e.target.value })}
                 placeholder="https://www.google.com/maps/..."
                 disabled={isLoading}
+                className="w-full"
               />
               <p className="text-xs text-muted-foreground">
                 Para compartir un mapa, ábrelo en Google Maps, haz clic en "Compartir" y copia el enlace de "Incorporar un mapa".

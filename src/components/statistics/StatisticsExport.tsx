@@ -44,6 +44,7 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
       variant="outline"
       onClick={handleExport}
       disabled={territories.length === 0}
+      className="w-full sm:w-auto"
     >
       <FileSpreadsheet className="mr-2 h-4 w-4" />
       Exportar Excel

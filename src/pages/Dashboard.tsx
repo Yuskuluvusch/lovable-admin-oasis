@@ -77,13 +77,13 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-2">
           Bienvenido, {getDisplayName()}. Aquí está tu resumen administrativo.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
         <Card className="office-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -157,10 +157,10 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
         <Card className="office-shadow">
           <CardHeader>
-            <CardTitle>Actividad Reciente</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl">Actividad Reciente</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -182,11 +182,11 @@ const Dashboard = () => {
 
         <Card className="office-shadow">
           <CardHeader>
-            <CardTitle>Resumen del Sistema</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl">Resumen del Sistema</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="rounded-lg bg-accent p-3">
                   <p className="text-xs font-medium text-muted-foreground">Versión</p>
                   <p className="text-sm font-medium">1.0.0</p>

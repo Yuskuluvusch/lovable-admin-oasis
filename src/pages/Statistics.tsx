@@ -1,147 +1,154 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Loader2, FileSpreadsheet, Search } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Territory, TerritoryStatistics } from "@/types/territory-types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Loader2, Search } from "lucide-react";
+import { TerritorySafeData, TerritoryStatistics } from "@/types/territory-types";
 import StatisticsExport from "@/components/statistics/StatisticsExport";
 
 const Statistics = () => {
-  const [territories, setTerritories] = useState<Territory[]>([]);
-  const [filteredTerritories, setFilteredTerritories] = useState<Territory[]>([]);
-  const [statistics, setStatistics] = useState<TerritoryStatistics>({
+  const [territories, setTerritories] = useState<TerritorySafeData[]>([]);
+  const [filteredTerritories, setFilteredTerritories] = useState<TerritorySafeData[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<TerritoryStatistics>({
     total: 0,
     assigned: 0,
     available: 0,
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchTerritories();
-    fetchStatistics();
   }, []);
 
   useEffect(() => {
-    if (territories.length > 0) {
-      setFilteredTerritories(
-        territories.filter((territory) =>
-          territory.name.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+    if (searchTerm) {
+      const filtered = territories.filter(
+        (territory) =>
+          territory.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          territory.zone?.name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
+      setFilteredTerritories(filtered);
+    } else {
+      setFilteredTerritories(territories);
     }
   }, [searchTerm, territories]);
 
   const fetchTerritories = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      
+      // Fetch all territories
       const { data: territoriesData, error: territoriesError } = await supabase
         .from("territories")
         .select(`
-          *,
+          id, name, zone_id, google_maps_link, created_at, updated_at,
           zone:zones(id, name)
         `)
         .order("name");
-      
-      if (territoriesError) throw territoriesError;
 
-      // Get current assignments to determine which territories are assigned
+      if (territoriesError) {
+        console.error("Error fetching territories:", territoriesError);
+        return;
+      }
+
+      // Fetch assigned territories to get last assigned date
       const { data: assignmentsData, error: assignmentsError } = await supabase
         .from("assigned_territories")
         .select("territory_id, assigned_at")
+        .order("assigned_at", { ascending: false });
+
+      if (assignmentsError) {
+        console.error("Error fetching assignments:", assignmentsError);
+        return;
+      }
+
+      // Create a map of territory_id to latest assigned date
+      const lastAssignedMap = new Map();
+      assignmentsData?.forEach((assignment) => {
+        if (!lastAssignedMap.has(assignment.territory_id)) {
+          lastAssignedMap.set(assignment.territory_id, assignment.assigned_at);
+        }
+      });
+
+      // Get currently assigned territories
+      const { data: currentlyAssigned, error: currentlyAssignedError } = await supabase
+        .from("assigned_territories")
+        .select("territory_id")
         .eq("status", "assigned");
 
-      if (assignmentsError) throw assignmentsError;
+      if (currentlyAssignedError) {
+        console.error("Error fetching currently assigned territories:", currentlyAssignedError);
+        return;
+      }
 
-      // Map last assignment date to territories
-      const territoriesWithAssignment = territoriesData.map((territory) => {
-        const assignment = assignmentsData.find(
-          (a) => a.territory_id === territory.id
-        );
+      const assignedTerritoriesSet = new Set(
+        currentlyAssigned?.map((item) => item.territory_id) || []
+      );
+
+      // Transform and combine the data
+      const transformedTerritories = territoriesData.map((territory) => {
+        // Handle the potential error in the zone field
+        const zoneData = territory.zone && !territory.zone.error 
+          ? territory.zone 
+          : null;
+
         return {
           ...territory,
-          last_assigned_at: assignment ? assignment.assigned_at : null,
+          zone: zoneData,
+          last_assigned_at: lastAssignedMap.get(territory.id) || null,
         };
       });
 
-      setTerritories(territoriesWithAssignment);
-      setFilteredTerritories(territoriesWithAssignment);
-    } catch (error) {
-      console.error("Error fetching territories:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudieron cargar los territorios",
+      // Set territories with the transformed data
+      setTerritories(transformedTerritories as TerritorySafeData[]);
+      setFilteredTerritories(transformedTerritories as TerritorySafeData[]);
+
+      // Calculate statistics
+      setStats({
+        total: transformedTerritories.length,
+        assigned: assignedTerritoriesSet.size,
+        available: transformedTerritories.length - assignedTerritoriesSet.size,
       });
+    } catch (error) {
+      console.error("Error in fetchTerritories:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchStatistics = async () => {
-    try {
-      // Get total count of territories
-      const { count: totalCount, error: totalError } = await supabase
-        .from("territories")
-        .select("*", { count: "exact" });
-      
-      if (totalError) throw totalError;
-
-      // Get count of assigned territories
-      const { count: assignedCount, error: assignedError } = await supabase
-        .from("assigned_territories")
-        .select("*", { count: "exact" })
-        .eq("status", "assigned");
-      
-      if (assignedError) throw assignedError;
-
-      setStatistics({
-        total: totalCount || 0,
-        assigned: assignedCount || 0,
-        available: (totalCount || 0) - (assignedCount || 0),
-      });
-    } catch (error) {
-      console.error("Error fetching statistics:", error);
-    }
-  };
-
-  const handleViewTerritory = (territoryId: string) => {
-    navigate(`/estadisticas/${territoryId}`);
+  const handleRowClick = (territoryId: string) => {
+    navigate(`/territory-detail/${territoryId}`);
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Estadísticas</h1>
-        <p className="text-muted-foreground mt-2">
-          Control y seguimiento de territorios
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Estadísticas de Territorios</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-2">
+          Visualiza y analiza información sobre los territorios.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total de Territorios
+              Total Territorios
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statistics.total}</div>
+            {isLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">Cargando...</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-bold">{stats.total}</div>
+            )}
           </CardContent>
         </Card>
 
@@ -152,7 +159,14 @@ const Statistics = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statistics.assigned}</div>
+            {isLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">Cargando...</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-bold">{stats.assigned}</div>
+            )}
           </CardContent>
         </Card>
 
@@ -163,94 +177,89 @@ const Statistics = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{statistics.available}</div>
+            {isLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">Cargando...</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-bold">{stats.available}</div>
+            )}
           </CardContent>
         </Card>
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              type="search"
-              placeholder="Buscar territorios..."
-              className="pl-8"
+              placeholder="Buscar territorio..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-full"
             />
           </div>
-          <StatisticsExport territories={territories} />
+          <div className="w-full sm:w-auto">
+            <StatisticsExport territories={filteredTerritories} />
+          </div>
         </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Territorio</TableHead>
-                      <TableHead>Zona</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
+        <div className="border rounded-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Territorio</TableHead>
+                  <TableHead>Zona</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Última Asignación</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-4">
+                      <div className="flex justify-center items-center">
+                        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                        <span>Cargando territorios...</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredTerritories.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                      {searchTerm
+                        ? "No se encontraron territorios coincidentes."
+                        : "No hay territorios registrados."}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredTerritories.map((territory) => (
+                    <TableRow
+                      key={territory.id}
+                      className="cursor-pointer hover:bg-muted/60"
+                      onClick={() => handleRowClick(territory.id)}
+                    >
+                      <TableCell className="font-medium">{territory.name}</TableCell>
+                      <TableCell>{territory.zone?.name || "Sin zona"}</TableCell>
+                      <TableCell>
+                        {territory.last_assigned_at
+                          ? "Ha sido asignado"
+                          : "Nunca asignado"}
+                      </TableCell>
+                      <TableCell>
+                        {territory.last_assigned_at
+                          ? new Date(territory.last_assigned_at).toLocaleDateString()
+                          : "N/A"}
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredTerritories.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={4}
-                          className="h-24 text-center text-muted-foreground"
-                        >
-                          No se encontraron territorios
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredTerritories.map((territory) => (
-                        <TableRow key={territory.id}>
-                          <TableCell className="font-medium">
-                            {territory.name}
-                          </TableCell>
-                          <TableCell>
-                            {territory.zone?.name || "Sin zona"}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <div
-                                className={`h-2 w-2 rounded-full mr-2 ${
-                                  territory.last_assigned_at
-                                    ? "bg-orange-500"
-                                    : "bg-green-500"
-                                }`}
-                              ></div>
-                              {territory.last_assigned_at
-                                ? "Asignado"
-                                : "Disponible"}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewTerritory(territory.id)}
-                            >
-                              Ver historial
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       </div>
     </div>
   );

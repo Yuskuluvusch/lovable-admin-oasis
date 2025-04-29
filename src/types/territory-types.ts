@@ -50,3 +50,12 @@ export type TerritoryHistory = {
   expires_at: string | null;
   status: string | null;
 };
+
+// New interface to handle strict typing for query responses
+export interface TerritorySafeData extends Territory {
+  zone: Zone | null;
+}
+
+export interface TerritoryAssignmentSafeData extends TerritoryAssignment {
+  publisher: { name: string } | null;
+}
