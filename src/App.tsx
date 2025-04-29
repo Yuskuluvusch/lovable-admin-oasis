@@ -50,7 +50,7 @@ const App = () => (
               <Route path="/zones" element={<Zones />} />
               <Route path="/territories" element={<Territories />} />
               <Route path="/estadisticas" element={<Statistics />} />
-              <Route path="/estadisticas/:territoryId" element={<TerritoryDetail />} />
+              <Route path="/estadisticas/:id" element={<TerritoryDetail />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

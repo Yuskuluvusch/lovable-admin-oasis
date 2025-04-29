@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,7 +101,7 @@ const Territories = () => {
       const { data, error } = await supabase
         .from("assigned_territories")
         .select(`
-          id, territory_id, publisher_id, assigned_at, expires_at, status, token,
+          id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
           publishers!assigned_territories_publisher_id_fkey(name)
         `)
         .eq("status", "assigned");
@@ -119,6 +120,7 @@ const Territories = () => {
         expires_at: item.expires_at,
         status: item.status,
         token: item.token,
+        returned_at: item.returned_at, // Added the missing property
         publisher: item.publishers ? { name: item.publishers.name } : undefined,
       }));
 

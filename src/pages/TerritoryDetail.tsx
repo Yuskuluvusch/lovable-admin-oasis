@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, ArrowLeft, MapPin, Calendar } from "lucide-react";
-import { Territory, TerritoryHistory, TerritorySafeData } from "@/types/territory-types";
+import { TerritoryHistory, TerritorySafeData } from "@/types/territory-types";
 import TerritoryDetailExport from "@/components/statistics/TerritoryDetailExport";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
