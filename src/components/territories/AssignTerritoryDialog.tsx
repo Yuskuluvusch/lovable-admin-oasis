@@ -13,6 +13,12 @@ import { Territory } from "@/types/territory-types";
 interface Publisher {
   id: string;
   name: string;
+  role_id: string;
+  assigned_territories_count: number;
+  publisher_roles?: {
+    max_territories: number;
+    name: string;
+  };
 }
 
 interface AppSettingsType {
@@ -33,16 +39,44 @@ const AssignTerritoryDialog: React.FC<AssignTerritoryDialogProps> = ({ territory
 
   useEffect(() => {
     const fetchPublishers = async () => {
-      const { data, error } = await supabase
+      // Primero obtenemos los publishers con sus roles
+      const { data: publishersData, error: publishersError } = await supabase
         .from("publishers")
-        .select("id, name")
+        .select(`
+          id,
+          name,
+          role_id,
+          publisher_roles (
+            max_territories,
+            name
+          )
+        `)
         .order("name");
 
-      if (error) {
-        console.error("Error loading publishers:", error);
+      if (publishersError) {
+        console.error("Error loading publishers:", publishersError);
         return;
       }
-      setPublishers(data || []);
+
+      // Ahora obtenemos el recuento de territorios para cada publicador
+      if (publishersData) {
+        const publishersWithCounts = await Promise.all(
+          publishersData.map(async (publisher) => {
+            const { count } = await supabase
+              .from("assigned_territories")
+              .select("*", { count: 'exact', head: true })
+              .eq("publisher_id", publisher.id)
+              .eq("status", "assigned");
+            
+            return {
+              ...publisher,
+              assigned_territories_count: count || 0
+            };
+          })
+        );
+
+        setPublishers(publishersWithCounts);
+      }
     };
 
     const fetchAppSettings = async () => {
@@ -71,6 +105,18 @@ const AssignTerritoryDialog: React.FC<AssignTerritoryDialogProps> = ({ territory
     if (!selectedPublisherId) {
       toast.error("Por favor selecciona un publicador");
       return;
+    }
+
+    // Verificar límite de territorios
+    const selectedPublisher = publishers.find(p => p.id === selectedPublisherId);
+    if (selectedPublisher) {
+      const maxTerritories = selectedPublisher.publisher_roles?.max_territories || 1;
+      const currentCount = selectedPublisher.assigned_territories_count || 0;
+
+      if (currentCount >= maxTerritories) {
+        toast.error(`El publicador ya tiene el máximo permitido de ${maxTerritories} territorio(s) asignado(s) para su rol de ${selectedPublisher.publisher_roles?.name}`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -106,6 +152,17 @@ const AssignTerritoryDialog: React.FC<AssignTerritoryDialogProps> = ({ territory
     }
   };
 
+  // Filtrar publicadores que ya han alcanzado su límite
+  const getPublisherStatus = (publisher: Publisher) => {
+    const maxTerritories = publisher.publisher_roles?.max_territories || 1;
+    const currentCount = publisher.assigned_territories_count || 0;
+    
+    if (currentCount >= maxTerritories) {
+      return `(${currentCount}/${maxTerritories}) - Límite alcanzado`;
+    }
+    return `(${currentCount}/${maxTerritories})`;
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -134,8 +191,12 @@ const AssignTerritoryDialog: React.FC<AssignTerritoryDialogProps> = ({ territory
               </SelectTrigger>
               <SelectContent>
                 {publishers.map((publisher) => (
-                  <SelectItem key={publisher.id} value={publisher.id}>
-                    {publisher.name}
+                  <SelectItem 
+                    key={publisher.id} 
+                    value={publisher.id}
+                    disabled={publisher.assigned_territories_count >= (publisher.publisher_roles?.max_territories || 1)}
+                  >
+                    {publisher.name} {getPublisherStatus(publisher)}
                   </SelectItem>
                 ))}
               </SelectContent>

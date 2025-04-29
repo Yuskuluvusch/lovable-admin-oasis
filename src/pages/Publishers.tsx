@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Table,
@@ -24,22 +24,27 @@ import { toast } from "sonner";
 interface PublisherRole {
   id: string;
   name: string;
+  max_territories: number;
 }
 
 interface Publisher {
   id: string;
   name: string;
-  role_id: string;
+  role_id: string | null;
   publisher_roles?: PublisherRole;
+  assigned_territories_count?: number;
 }
 
 const Publishers = () => {
   const [publishers, setPublishers] = useState<Publisher[]>([]);
+  const [filteredPublishers, setFilteredPublishers] = useState<Publisher[]>([]);
   const [roles, setRoles] = useState<PublisherRole[]>([]);
   const [newPublisher, setNewPublisher] = useState({ name: "", role_id: "" });
   const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const fetchData = async () => {
+    setIsLoading(true);
     // Cargar roles
     const { data: rolesData } = await supabase
       .from("publisher_roles")
@@ -50,26 +55,56 @@ const Publishers = () => {
       setRoles(rolesData);
     }
 
-    // Cargar publicadores con sus roles
+    // Cargar publicadores con sus roles y contar territorios asignados
     const { data: publishersData } = await supabase
       .from("publishers")
       .select(`
         *,
         publisher_roles (
           id,
-          name
+          name,
+          max_territories
         )
       `)
       .order("name");
 
     if (publishersData) {
-      setPublishers(publishersData);
+      // Ahora obtenemos el recuento de territorios para cada publicador
+      const publishersWithCounts = await Promise.all(
+        publishersData.map(async (publisher) => {
+          const { count } = await supabase
+            .from("assigned_territories")
+            .select("*", { count: 'exact', head: true })
+            .eq("publisher_id", publisher.id)
+            .eq("status", "assigned");
+          
+          return {
+            ...publisher,
+            assigned_territories_count: count || 0
+          };
+        })
+      );
+
+      setPublishers(publishersWithCounts);
+      setFilteredPublishers(publishersWithCounts);
     }
+    setIsLoading(false);
   };
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (searchTerm.trim() === "") {
+      setFilteredPublishers(publishers);
+    } else {
+      const filtered = publishers.filter((publisher) =>
+        publisher.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredPublishers(filtered);
+    }
+  }, [searchTerm, publishers]);
 
   const handleCreatePublisher = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,21 +173,53 @@ const Publishers = () => {
         </Button>
       </form>
 
+      <div className="flex justify-between items-center">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar publicador..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Rol</TableHead>
+              <TableHead>Territorios Asignados</TableHead>
+              <TableHead>Límite</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {publishers.map((publisher) => (
-              <TableRow key={publisher.id}>
-                <TableCell>{publisher.name}</TableCell>
-                <TableCell>{publisher.publisher_roles?.name}</TableCell>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-4">
+                  Cargando publicadores...
+                </TableCell>
               </TableRow>
-            ))}
+            ) : filteredPublishers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-4">
+                  No se encontraron publicadores
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredPublishers.map((publisher) => (
+                <TableRow key={publisher.id}>
+                  <TableCell>{publisher.name}</TableCell>
+                  <TableCell>{publisher.publisher_roles?.name}</TableCell>
+                  <TableCell>{publisher.assigned_territories_count || 0}</TableCell>
+                  <TableCell>
+                    {publisher.publisher_roles?.max_territories || '-'}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
