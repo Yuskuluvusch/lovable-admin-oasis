@@ -134,7 +134,7 @@ const Territories = () => {
         expires_at: item.expires_at,
         status: item.status,
         token: item.token,
-        returned_at: item.returned_at, // Added the missing property
+        returned_at: item.returned_at,
         publisher: item.publishers ? { name: item.publishers.name } : undefined,
       }));
 
