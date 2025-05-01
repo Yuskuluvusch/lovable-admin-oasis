@@ -5,10 +5,10 @@ import { es } from "date-fns/locale";
 import { Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { TerritoryHistory } from "@/types/territory-types";
+import type { TerritoryHistory as TerritoryHistoryType } from "@/types/territory-types";
 
 interface TerritoryHistoryTableProps {
-  history: TerritoryHistory[];
+  history: TerritoryHistoryType[];
 }
 
 const TerritoryHistoryTable = ({ history }: TerritoryHistoryTableProps) => {
