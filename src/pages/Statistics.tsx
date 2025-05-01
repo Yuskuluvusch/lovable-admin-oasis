@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,9 +15,14 @@ const Statistics = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<TerritoryStatistics>({
+    total_territories: 0,
+    assigned_territories: 0,
+    available_territories: 0,
+    expired_territories: 0,
+    territories_by_zone: [],
     total: 0,
     assigned: 0,
-    available: 0,
+    available: 0
   });
   const navigate = useNavigate();
 
@@ -108,9 +114,14 @@ const Statistics = () => {
 
       // Calculate statistics
       setStats({
+        total_territories: transformedTerritories.length,
+        assigned_territories: assignedTerritoriesSet.size,
+        available_territories: transformedTerritories.length - assignedTerritoriesSet.size,
+        expired_territories: 0,
+        territories_by_zone: [],
         total: transformedTerritories.length,
         assigned: assignedTerritoriesSet.size,
-        available: transformedTerritories.length - assignedTerritoriesSet.size,
+        available: transformedTerritories.length - assignedTerritoriesSet.size
       });
     } catch (error) {
       console.error("Error in fetchTerritories:", error);
@@ -200,7 +211,7 @@ const Statistics = () => {
             />
           </div>
           <div className="w-full sm:w-auto">
-            <StatisticsExport territories={filteredTerritories} />
+            <StatisticsExport territories={filteredTerritories as any} />
           </div>
         </div>
 

@@ -11,6 +11,11 @@ const Dashboard = () => {
   const [adminCount, setAdminCount] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [territoryStats, setTerritoryStats] = useState<TerritoryStatistics>({
+    total_territories: 0,
+    assigned_territories: 0,
+    available_territories: 0,
+    expired_territories: 0,
+    territories_by_zone: [],
     total: 0,
     assigned: 0,
     available: 0
@@ -60,6 +65,11 @@ const Dashboard = () => {
 
         setAdminCount(adminCount || 0);
         setTerritoryStats({
+          total_territories: totalTerritories || 0,
+          assigned_territories: assignedTerritories || 0,
+          available_territories: (totalTerritories || 0) - (assignedTerritories || 0),
+          expired_territories: 0,
+          territories_by_zone: [],
           total: totalTerritories || 0,
           assigned: assignedTerritories || 0,
           available: (totalTerritories || 0) - (assignedTerritories || 0)

@@ -44,10 +44,13 @@ export interface TerritoryHistory {
 export interface TerritorySafeData {
   id: string;
   name: string;
-  zone_name: string | null;
-  assigned_count: number;
-  returned_count: number;
-  days_assigned: number | null;
+  zone?: Zone;
+  google_maps_link?: string;
+  last_assigned_at?: string | null;
+  last_returned_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  zone_id?: string;
 }
 
 export interface TerritoryStatistics {
@@ -60,6 +63,9 @@ export interface TerritoryStatistics {
     total: number;
     assigned: number;
   }[];
+  total: number;
+  assigned: number;
+  available: number;
 }
 
 export interface AppSettings {

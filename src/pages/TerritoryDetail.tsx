@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, ArrowLeft, MapPin, Calendar } from "lucide-react";
-import { TerritoryHistory, TerritorySafeData } from "@/types/territory-types";
+import { TerritoryHistory, Territory } from "@/types/territory-types";
 import TerritoryDetailExport from "@/components/statistics/TerritoryDetailExport";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -14,7 +14,7 @@ import { es } from "date-fns/locale";
 const TerritoryDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [territory, setTerritory] = useState<TerritorySafeData | null>(null);
+  const [territory, setTerritory] = useState<Territory | null>(null);
   const [history, setHistory] = useState<TerritoryHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -60,10 +60,11 @@ const TerritoryDetail = () => {
         : null;
 
       // Set territory with complete data
-      const territoryWithData: TerritorySafeData = {
+      const territoryWithData: Territory = {
         ...data,
         zone: zoneData,
         last_assigned_at: assignments && assignments.length > 0 ? assignments[0].assigned_at : null,
+        last_returned_at: null // This will be updated if needed
       };
 
       setTerritory(territoryWithData);
