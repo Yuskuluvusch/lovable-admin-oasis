@@ -81,24 +81,19 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
       // Add summary sheet to beginning of workbook
       XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen', true);
       
-      // Process each zone
+      // Define the columns for territories history
+      const columns = [
+        'Territorio', 'Zona', 'Publicador', 'Fecha de asignación', 
+        'Fecha de expiración', 'Fecha de devolución', 'Estado'
+      ];
+      
+      // Process each zone to create separate worksheets
       for (const [zoneName, zoneTeritories] of Object.entries(territoriesByZone)) {
         // Create a new worksheet for this zone
-        const newWs = XLSX.utils.aoa_to_sheet([[]]); // Start with empty worksheet
-        
-        // Set up default column width
-        const defaultColWidth = 15;
-        newWs['!cols'] = [];
-        
-        // Define the columns for territories
-        const columns = [
-          'Territorio', 'Zona', 'Publicador', 'Fecha de asignación', 
-          'Fecha de expiración', 'Fecha de devolución', 'Estado', 'Google Maps'
-        ];
-        
-        // Process each territory
+        const zoneWs = XLSX.utils.aoa_to_sheet([[]]);
         let currentCol = 0;
         
+        // Process each territory in the zone
         for (const territory of zoneTeritories) {
           // Get territory history data
           const { data: historyData, error: historyError } = await supabase
@@ -123,34 +118,33 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
 
           // Add territory name as a header
           XLSX.utils.sheet_add_aoa(
-            newWs, 
+            zoneWs, 
             [[`Territorio ${territory.name}`]], 
             { origin: { r: 0, c: currentCol } }
           );
           
-          // Add column headers
+          // Add column headers for this territory
           XLSX.utils.sheet_add_aoa(
-            newWs, 
-            [columns.map(col => col === 'Google Maps' ? 'Maps' : col)], 
+            zoneWs, 
+            [columns], 
             { origin: { r: 1, c: currentCol } }
           );
           
           if (historyData && historyData.length > 0) {
-            // Add territory history data
+            // Add each history record as a row
             historyData.forEach((record: any, rowIndex) => {
               const rowData = [
-                territory.name,
-                zoneName,
-                record.publishers?.name || 'Desconocido',
-                formatDate(record.assigned_at),
-                record.expires_at ? formatDate(record.expires_at) : '—',
-                record.returned_at ? formatDate(record.returned_at) : '—',
-                getStatus(record.status),
-                territory.google_maps_link || 'N/A'
+                territory.name,                               // Territorio
+                zoneName,                                    // Zona
+                record.publishers?.name || 'Desconocido',    // Publicador
+                formatDate(record.assigned_at),              // Fecha de asignación
+                record.expires_at ? formatDate(record.expires_at) : '—', // Fecha de expiración
+                record.returned_at ? formatDate(record.returned_at) : '—', // Fecha de devolución
+                getStatus(record.status)                     // Estado
               ];
               
               XLSX.utils.sheet_add_aoa(
-                newWs, 
+                zoneWs, 
                 [rowData], 
                 { origin: { r: rowIndex + 2, c: currentCol } }
               );
@@ -164,12 +158,11 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
               'Nunca asignado',
               'N/A',
               'N/A',
-              'Disponible',
-              territory.google_maps_link || 'N/A'
+              'Disponible'
             ];
             
             XLSX.utils.sheet_add_aoa(
-              newWs, 
+              zoneWs, 
               [rowData], 
               { origin: { r: 2, c: currentCol } }
             );
@@ -177,12 +170,12 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
           
           // Set column widths for this territory block
           for (let i = 0; i < columns.length; i++) {
-            const width = columns[i] === 'Google Maps' ? 30 : 
-                          columns[i] === 'Publicador' ? 20 :
+            const width = columns[i] === 'Publicador' ? 20 :
                           columns[i].includes('Fecha') ? 18 : 
-                          defaultColWidth;
+                          15;
             
-            newWs['!cols'][currentCol + i] = { wch: width };
+            zoneWs['!cols'] = zoneWs['!cols'] || [];
+            zoneWs['!cols'][currentCol + i] = { wch: width };
           }
           
           // Move to the next territory block (leave one empty column)
@@ -190,9 +183,8 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
         }
         
         // Add the zone worksheet to the workbook
-        // Use a safe sheet name (max 31 chars, no special chars)
         const safeZoneName = zoneName.substring(0, 30).replace(/[\\\/\[\]\*\?:]/g, '_');
-        XLSX.utils.book_append_sheet(workbook, newWs, safeZoneName);
+        XLSX.utils.book_append_sheet(workbook, zoneWs, safeZoneName);
       }
       
       // Generate file and download
