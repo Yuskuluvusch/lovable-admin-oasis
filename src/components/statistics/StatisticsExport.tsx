@@ -55,6 +55,32 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
       // Create a new workbook
       const workbook = XLSX.utils.book_new();
       
+      // Create a summary worksheet with basic territory info
+      const summaryData = territories.map(territory => ({
+        'Territorio': territory.name,
+        'Zona': territory.zone?.name || 'Sin zona',
+        'Estado': territory.last_assigned_at ? 'Asignado' : 'Disponible',
+        'Última Asignación': territory.last_assigned_at ? formatDate(territory.last_assigned_at) : 'Nunca asignado',
+        'Última Devolución': territory.last_returned_at ? formatDate(territory.last_returned_at) : 'N/A',
+        'Google Maps': territory.google_maps_link || 'N/A'
+      }));
+      
+      const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+      
+      // Set column widths for summary sheet
+      const summaryColumnWidths = [
+        { wch: 15 }, // Territorio
+        { wch: 15 }, // Zona
+        { wch: 15 }, // Estado
+        { wch: 20 }, // Última Asignación
+        { wch: 20 }, // Última Devolución
+        { wch: 50 }  // Google Maps
+      ];
+      summarySheet['!cols'] = summaryColumnWidths;
+      
+      // Add summary sheet to beginning of workbook
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen', true);
+      
       // Process each zone
       for (const [zoneName, zoneTeritories] of Object.entries(territoriesByZone)) {
         // Create a new worksheet for this zone
@@ -168,32 +194,6 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
         const safeZoneName = zoneName.substring(0, 30).replace(/[\\\/\[\]\*\?:]/g, '_');
         XLSX.utils.book_append_sheet(workbook, newWs, safeZoneName);
       }
-      
-      // Create a summary worksheet with basic territory info
-      const summaryData = territories.map(territory => ({
-        'Territorio': territory.name,
-        'Zona': territory.zone?.name || 'Sin zona',
-        'Estado': territory.last_assigned_at ? 'Asignado' : 'Disponible',
-        'Última Asignación': territory.last_assigned_at ? formatDate(territory.last_assigned_at) : 'Nunca asignado',
-        'Última Devolución': territory.last_returned_at ? formatDate(territory.last_returned_at) : 'N/A',
-        'Google Maps': territory.google_maps_link || 'N/A'
-      }));
-      
-      const summarySheet = XLSX.utils.json_to_sheet(summaryData);
-      
-      // Set column widths for summary sheet
-      const summaryColumnWidths = [
-        { wch: 15 }, // Territorio
-        { wch: 15 }, // Zona
-        { wch: 15 }, // Estado
-        { wch: 20 }, // Última Asignación
-        { wch: 20 }, // Última Devolución
-        { wch: 50 }  // Google Maps
-      ];
-      summarySheet['!cols'] = summaryColumnWidths;
-      
-      // Add summary sheet to beginning of workbook
-      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen', true);
       
       // Generate file and download
       XLSX.writeFile(workbook, `Territorios_Historial_Completo.xlsx`);
