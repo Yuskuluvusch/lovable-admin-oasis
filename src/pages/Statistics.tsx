@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Search } from "lucide-react";
 import { TerritorySafeData, TerritoryStatistics } from "@/types/territory-types";
 import StatisticsExport from "@/components/statistics/StatisticsExport";
-import StatisticsExcelFormatter from "@/components/statistics/StatisticsExcelFormatter";
 import { Separator } from "@/components/ui/separator";
 
 const Statistics = () => {
@@ -212,21 +210,9 @@ const Statistics = () => {
               className="pl-10 w-full"
             />
           </div>
-          <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
+          <div className="w-full sm:w-auto">
             <StatisticsExport territories={filteredTerritories as any} />
-            <StatisticsExcelFormatter />
           </div>
-        </div>
-
-        <div className="border rounded-md p-4 bg-muted/20">
-          <h3 className="text-sm font-medium mb-2">Herramientas de exportación</h3>
-          <p className="text-xs text-muted-foreground mb-4">
-            Para reorganizar los datos exportados en un formato por columnas según zonas y territorios:
-          </p>
-          <ol className="text-xs text-muted-foreground list-decimal ml-4 space-y-1">
-            <li>Primero exporta los datos usando el botón "Exportar Excel Completo"</li>
-            <li>Luego utiliza "Procesar archivo exportado" para reorganizar el archivo</li>
-          </ol>
         </div>
 
         <div className="border rounded-md overflow-hidden">
