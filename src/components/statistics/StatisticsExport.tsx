@@ -44,6 +44,7 @@ const StatisticsExport = ({ territories }) => {
         let currentCol = 0;
 
         for (const territory of zoneTerritories) {
+          // Aquí traemos TODO el historial del territorio
           const { data: history, error } = await supabase
             .from('assigned_territories')
             .select('id, territory_id, publisher_id, assigned_at, expires_at, returned_at, status, publishers(name)')
@@ -55,9 +56,11 @@ const StatisticsExport = ({ territories }) => {
             continue;
           }
 
+          // Escribimos cabecera del bloque
           XLSX.utils.sheet_add_aoa(zoneWs, [[`Territorio ${territory.name}`]], { origin: { r: 0, c: currentCol } });
           XLSX.utils.sheet_add_aoa(zoneWs, [columns], { origin: { r: 1, c: currentCol } });
 
+          // Escribimos historial completo
           if (history && history.length > 0) {
             history.forEach((record, index) => {
               const row = [
@@ -76,12 +79,14 @@ const StatisticsExport = ({ territories }) => {
             XLSX.utils.sheet_add_aoa(zoneWs, [emptyRow], { origin: { r: 2, c: currentCol } });
           }
 
+          // Ajustamos anchos de columna
           zoneWs['!cols'] = zoneWs['!cols'] || [];
           for (let i = 0; i < columns.length; i++) {
             zoneWs['!cols'][currentCol + i] = { wch: 18 };
           }
 
-          currentCol += columns.length + 1; // move to next block +1 empty col
+          // Dejamos una columna vacía entre bloques
+          currentCol += columns.length + 1;
         }
 
         const safeName = zoneName.substring(0, 30).replace(/[\\/\[\]\*\?:]/g, '_');
@@ -106,4 +111,3 @@ const StatisticsExport = ({ territories }) => {
 };
 
 export default StatisticsExport;
-
