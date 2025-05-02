@@ -102,7 +102,7 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
       
       // Process each territory to collect its history
       for (const territory of territories) {
-        // Get territory history data
+        // Get territory history data - Corregimos la consulta para especificar la relación correcta
         const { data: historyRecords, error: historyError } = await supabase
           .from("assigned_territories")
           .select(`
@@ -113,7 +113,7 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
             expires_at,
             returned_at,
             status,
-            publishers(name)
+            publishers!assigned_territories_publisher_id_fkey(name)
           `)
           .eq("territory_id", territory.id)
           .order("assigned_at", { ascending: false });
@@ -177,7 +177,7 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
         const zoneHistoryData: any[] = [];
         
         for (const territory of zoneTerritories) {
-          // Get territory history data
+          // Get territory history data - Corregimos la consulta para especificar la relación correcta
           const { data: zoneHistoryRecords, error: zoneHistoryError } = await supabase
             .from("assigned_territories")
             .select(`
@@ -188,7 +188,7 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
               expires_at,
               returned_at,
               status,
-              publishers(name)
+              publishers!assigned_territories_publisher_id_fkey(name)
             `)
             .eq("territory_id", territory.id)
             .order("assigned_at", { ascending: false });
