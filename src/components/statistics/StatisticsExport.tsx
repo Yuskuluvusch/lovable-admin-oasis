@@ -26,75 +26,76 @@ const StatisticsExport = ({ territories }) => {
   const handleExport = async () => {
     if (territories.length === 0) return;
 
-    toast({ title: 'Exportando', description: 'Descargando historial completo de todos los territorios...' });
+    toast({ title: 'Exportando', description: 'Descargando historial completo de todos los territorios desde assigned_territories...' });
 
     try {
-      const territoriesByZone = territories.reduce((acc, territory) => {
-        const zone = territory.zone?.name || 'Sin zona';
-        if (!acc[zone]) acc[zone] = [];
-        acc[zone].push(territory);
-        return acc;
-      }, {});
-
       const workbook = XLSX.utils.book_new();
       const columns = ['Territorio', 'Zona', 'Publicador', 'Fecha asignación', 'Fecha devolución', 'Fecha expiración', 'Estado'];
 
-      for (const [zoneName, zoneTerritories] of Object.entries(territoriesByZone)) {
-        const zoneWs = XLSX.utils.aoa_to_sheet([[]]);
+      // Primero, traer TODO assigned_territories de una vez
+      const { data: allHistory, error } = await supabase
+        .from('assigned_territories')
+        .select('id, territory_id, publisher_id, assigned_at, expires_at, returned_at, status, publishers(name), territories(id, name, zone(name))')
+        .order('assigned_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Agrupar por zona y por territorio
+      const zones = {};
+
+      allHistory.forEach(record => {
+        const territory = record.territories;
+        const zoneName = territory.zone?.name || 'Sin zona';
+        if (!zones[zoneName]) zones[zoneName] = {};
+        if (!zones[zoneName][territory.id]) zones[zoneName][territory.id] = {
+          name: territory.name,
+          records: []
+        };
+        zones[zoneName][territory.id].records.push(record);
+      });
+
+      // Por cada zona, crear hoja
+      for (const [zoneName, territoriesInZone] of Object.entries(zones)) {
+        const sheet = XLSX.utils.aoa_to_sheet([[]]);
         let currentCol = 0;
 
-        for (const territory of zoneTerritories) {
-          // Aquí traemos TODO el historial del territorio
-          const { data: history, error } = await supabase
-            .from('assigned_territories')
-            .select('id, territory_id, publisher_id, assigned_at, expires_at, returned_at, status, publishers(name)')
-            .eq('territory_id', territory.id)
-            .order('assigned_at', { ascending: false });
+        for (const [territoryId, territoryData] of Object.entries(territoriesInZone)) {
+          const { name, records } = territoryData;
 
-          if (error) {
-            console.error(`Error en ${territory.name}:`, error);
-            continue;
-          }
+          XLSX.utils.sheet_add_aoa(sheet, [[`Territorio ${name}`]], { origin: { r: 0, c: currentCol } });
+          XLSX.utils.sheet_add_aoa(sheet, [columns], { origin: { r: 1, c: currentCol } });
 
-          // Escribimos cabecera del bloque
-          XLSX.utils.sheet_add_aoa(zoneWs, [[`Territorio ${territory.name}`]], { origin: { r: 0, c: currentCol } });
-          XLSX.utils.sheet_add_aoa(zoneWs, [columns], { origin: { r: 1, c: currentCol } });
-
-          // Escribimos historial completo
-          if (history && history.length > 0) {
-            history.forEach((record, index) => {
+          if (records.length > 0) {
+            records.forEach((rec, idx) => {
               const row = [
-                territory.name,
+                name,
                 zoneName,
-                record.publishers?.name || 'Desconocido',
-                formatDate(record.assigned_at),
-                record.returned_at ? formatDate(record.returned_at) : '—',
-                record.expires_at ? formatDate(record.expires_at) : '—',
-                getStatus(record.status)
+                rec.publishers?.name || 'Desconocido',
+                formatDate(rec.assigned_at),
+                rec.returned_at ? formatDate(rec.returned_at) : '—',
+                rec.expires_at ? formatDate(rec.expires_at) : '—',
+                getStatus(rec.status)
               ];
-              XLSX.utils.sheet_add_aoa(zoneWs, [row], { origin: { r: index + 2, c: currentCol } });
+              XLSX.utils.sheet_add_aoa(sheet, [row], { origin: { r: idx + 2, c: currentCol } });
             });
           } else {
-            const emptyRow = [territory.name, zoneName, 'N/A', 'Nunca asignado', 'N/A', 'N/A', 'Disponible'];
-            XLSX.utils.sheet_add_aoa(zoneWs, [emptyRow], { origin: { r: 2, c: currentCol } });
+            const emptyRow = [name, zoneName, 'N/A', 'Nunca asignado', 'N/A', 'N/A', 'Disponible'];
+            XLSX.utils.sheet_add_aoa(sheet, [emptyRow], { origin: { r: 2, c: currentCol } });
           }
 
-          // Ajustamos anchos de columna
-          zoneWs['!cols'] = zoneWs['!cols'] || [];
+          sheet['!cols'] = sheet['!cols'] || [];
           for (let i = 0; i < columns.length; i++) {
-            zoneWs['!cols'][currentCol + i] = { wch: 18 };
+            sheet['!cols'][currentCol + i] = { wch: 18 };
           }
 
-          // Dejamos una columna vacía entre bloques
           currentCol += columns.length + 1;
         }
 
         const safeName = zoneName.substring(0, 30).replace(/[\\/\[\]\*\?:]/g, '_');
-        XLSX.utils.book_append_sheet(workbook, zoneWs, safeName);
+        XLSX.utils.book_append_sheet(workbook, sheet, safeName);
       }
 
       XLSX.writeFile(workbook, `Territorios_Historial_Completo.xlsx`);
-
       toast({ title: 'Completado', description: 'El archivo se ha descargado correctamente.' });
     } catch (err) {
       console.error('Error exportando:', err);
@@ -103,7 +104,7 @@ const StatisticsExport = ({ territories }) => {
   };
 
   return (
-    <Button onClick={handleExport} disabled={territories.length === 0}>
+    <Button onClick={handleExport}>
       <FileSpreadsheet className="mr-2 h-4 w-4" />
       Exportar Historial Completo
     </Button>
