@@ -34,7 +34,12 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A';
-    return format(new Date(dateString), "dd MMM yyyy", { locale: es });
+    try {
+      return format(new Date(dateString), "dd MMM yyyy", { locale: es });
+    } catch (error) {
+      console.error("Error formatting date:", dateString, error);
+      return 'Fecha inválida';
+    }
   };
 
   const getStatus = (status: string | null) => {
@@ -58,7 +63,7 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
     });
 
     try {
-      // Group territories by zone
+      // Group territories by zone for better organization
       const territoriesByZone = territories.reduce((acc: Record<string, Territory[]>, territory) => {
         const zoneName = territory.zone?.name || 'Sin zona';
         if (!acc[zoneName]) {
@@ -68,7 +73,7 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
         return acc;
       }, {});
 
-      // Create a new workbook
+      // Create a new workbook with default settings
       const workbook = XLSX.utils.book_new();
       
       // Create a summary worksheet with basic territory info
@@ -81,28 +86,40 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
         'Google Maps': territory.google_maps_link || 'N/A'
       }));
       
-      const summarySheet = XLSX.utils.json_to_sheet(summaryData);
-      
-      // Set column widths for summary sheet
-      const summaryColumnWidths = [
-        { wch: 15 }, // Territorio
-        { wch: 15 }, // Zona
-        { wch: 15 }, // Estado
-        { wch: 20 }, // Última Asignación
-        { wch: 20 }, // Última Devolución
-        { wch: 50 }  // Google Maps
-      ];
-      summarySheet['!cols'] = summaryColumnWidths;
-      
-      // Add summary sheet to beginning of workbook
-      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen', true);
+      // Only create summary sheet if we have data
+      if (summaryData.length > 0) {
+        const summarySheet = XLSX.utils.json_to_sheet(summaryData);
+        
+        // Set column widths for summary sheet
+        const summaryColumnWidths = [
+          { wch: 15 }, // Territorio
+          { wch: 15 }, // Zona
+          { wch: 15 }, // Estado
+          { wch: 20 }, // Última Asignación
+          { wch: 20 }, // Última Devolución
+          { wch: 50 }  // Google Maps
+        ];
+        summarySheet['!cols'] = summaryColumnWidths;
+        
+        // Add summary sheet to beginning of workbook
+        XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
+      } else {
+        // Create empty summary sheet with headers if no data
+        const emptySheet = XLSX.utils.aoa_to_sheet([
+          ['Territorio', 'Zona', 'Estado', 'Última Asignación', 'Última Devolución', 'Google Maps'],
+          ['No hay territorios', '', '', '', '', '']
+        ]);
+        XLSX.utils.book_append_sheet(workbook, emptySheet, 'Resumen');
+      }
       
       // Prepare a single worksheet for the complete history of all territories
       const historyData: any[] = [];
       
       // Process each territory to collect its history
       for (const territory of territories) {
-        // Get territory history data - Corregimos la consulta para especificar la relación correcta
+        console.log(`Fetching history for territory: ${territory.name} (${territory.id})`);
+        
+        // Get territory history data with correct relation specification
         const { data: historyRecords, error: historyError } = await supabase
           .from("assigned_territories")
           .select(`
@@ -122,6 +139,8 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
           console.error(`Error fetching history for territory ${territory.name}:`, historyError);
           continue;
         }
+
+        console.log(`Retrieved ${historyRecords?.length || 0} history records for territory ${territory.name}`);
 
         if (historyRecords && historyRecords.length > 0) {
           // Add each history record to the consolidated data
@@ -153,31 +172,50 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
       }
       
       // Create the complete history sheet
-      const historySheet = XLSX.utils.json_to_sheet(historyData);
+      console.log(`Creating complete history sheet with ${historyData.length} records`);
       
-      // Set column widths for history sheet
-      const historyColumnWidths = [
-        { wch: 15 }, // Territorio
-        { wch: 15 }, // Zona
-        { wch: 20 }, // Publicador
-        { wch: 20 }, // Fecha de asignación
-        { wch: 20 }, // Fecha de expiración
-        { wch: 20 }, // Fecha de devolución
-        { wch: 15 }, // Estado
-        { wch: 50 }  // Google Maps
-      ];
-      historySheet['!cols'] = historyColumnWidths;
+      if (historyData.length > 0) {
+        const historySheet = XLSX.utils.json_to_sheet(historyData);
+        
+        // Set column widths for history sheet
+        const historyColumnWidths = [
+          { wch: 15 }, // Territorio
+          { wch: 15 }, // Zona
+          { wch: 20 }, // Publicador
+          { wch: 20 }, // Fecha de asignación
+          { wch: 20 }, // Fecha de expiración
+          { wch: 20 }, // Fecha de devolución
+          { wch: 15 }, // Estado
+          { wch: 50 }  // Google Maps
+        ];
+        historySheet['!cols'] = historyColumnWidths;
+        
+        // Add history sheet to workbook
+        XLSX.utils.book_append_sheet(workbook, historySheet, 'Historial Completo');
+      } else {
+        // Create empty history sheet with headers if no data
+        const emptyHistorySheet = XLSX.utils.aoa_to_sheet([
+          ['Territorio', 'Zona', 'Publicador', 'Fecha de asignación', 'Fecha de expiración', 'Fecha de devolución', 'Estado', 'Google Maps'],
+          ['No hay registros de historial', '', '', '', '', '', '', '']
+        ]);
+        XLSX.utils.book_append_sheet(workbook, emptyHistorySheet, 'Historial Completo');
+      }
       
-      // Add history sheet to workbook
-      XLSX.utils.book_append_sheet(workbook, historySheet, 'Historial Completo');
+      // Create zone-specific sheets (if we have zones)
+      let zoneIndex = 1; // Use numerical index to prevent name collisions
       
-      // Also create individual sheets for each zone for better organization
       for (const [zoneName, zoneTerritories] of Object.entries(territoriesByZone)) {
+        // Create a safe sheet name - shorter and without special characters
+        const safeZoneName = `Zona ${zoneIndex} - ${zoneName.substring(0, 20).replace(/[\\\/\[\]\*\?:]/g, '_')}`;
+        zoneIndex++;
+        
+        console.log(`Processing zone: ${zoneName} with ${zoneTerritories.length} territories`);
+        
         // Collect history data for this zone
         const zoneHistoryData: any[] = [];
         
         for (const territory of zoneTerritories) {
-          // Get territory history data - Corregimos la consulta para especificar la relación correcta
+          // Get territory history data with correct relation specification
           const { data: zoneHistoryRecords, error: zoneHistoryError } = await supabase
             .from("assigned_territories")
             .select(`
@@ -225,27 +263,42 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
           }
         }
         
-        // Create zone history sheet
-        const zoneHistorySheet = XLSX.utils.json_to_sheet(zoneHistoryData);
+        console.log(`Creating zone sheet for ${zoneName} with ${zoneHistoryData.length} records`);
         
-        // Set column widths for zone history sheet
-        const zoneHistoryColumnWidths = [
-          { wch: 15 }, // Territorio
-          { wch: 20 }, // Publicador
-          { wch: 20 }, // Fecha de asignación
-          { wch: 20 }, // Fecha de expiración
-          { wch: 20 }, // Fecha de devolución
-          { wch: 15 }, // Estado
-          { wch: 50 }  // Google Maps
-        ];
-        zoneHistorySheet['!cols'] = zoneHistoryColumnWidths;
-        
-        // Add zone history sheet to workbook
-        const safeZoneName = zoneName.substring(0, 30).replace(/[\\\/\[\]\*\?:]/g, '_');
-        XLSX.utils.book_append_sheet(workbook, zoneHistorySheet, safeZoneName);
+        // Only create and add sheet if we have data
+        if (zoneHistoryData.length > 0) {
+          const zoneHistorySheet = XLSX.utils.json_to_sheet(zoneHistoryData);
+          
+          // Set column widths for zone history sheet
+          const zoneHistoryColumnWidths = [
+            { wch: 15 }, // Territorio
+            { wch: 20 }, // Publicador
+            { wch: 20 }, // Fecha de asignación
+            { wch: 20 }, // Fecha de expiración
+            { wch: 20 }, // Fecha de devolución
+            { wch: 15 }, // Estado
+            { wch: 50 }  // Google Maps
+          ];
+          zoneHistorySheet['!cols'] = zoneHistoryColumnWidths;
+          
+          // Try to add the zone sheet with error handling
+          try {
+            XLSX.utils.book_append_sheet(workbook, zoneHistorySheet, safeZoneName);
+          } catch (error) {
+            console.error(`Error adding sheet for zone ${zoneName}:`, error);
+            // If failed with custom name, try with generic name
+            try {
+              XLSX.utils.book_append_sheet(workbook, zoneHistorySheet, `Zona ${zoneIndex}`);
+            } catch (fallbackError) {
+              console.error(`Error adding fallback sheet for zone ${zoneName}:`, fallbackError);
+              // Continue with next zone if both attempts fail
+            }
+          }
+        }
       }
       
       // Generate file and download
+      console.log("Generating Excel file...");
       XLSX.writeFile(workbook, `Territorios_Historial_Completo.xlsx`);
       
       toast({
@@ -256,7 +309,7 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
       console.error("Error exporting territories:", error);
       toast({
         title: "Error",
-        description: "Hubo un problema al exportar los datos de territorios.",
+        description: "Hubo un problema al exportar los datos de territorios. Revisa la consola para más detalles.",
         variant: "destructive",
       });
     }
