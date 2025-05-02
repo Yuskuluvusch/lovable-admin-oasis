@@ -1,11 +1,12 @@
+
 import React from 'react';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 const StatisticsExport = ({ territories }) => {
   const { toast } = useToast();
@@ -29,72 +30,182 @@ const StatisticsExport = ({ territories }) => {
     toast({ title: 'Exportando', description: 'Descargando historial completo de todos los territorios desde assigned_territories...' });
 
     try {
+      // Crear un nuevo libro de Excel
       const workbook = XLSX.utils.book_new();
+      
+      // Definir las columnas del historial
       const columns = ['Territorio', 'Zona', 'Publicador', 'Fecha asignación', 'Fecha devolución', 'Fecha expiración', 'Estado'];
 
-      // Primero, traer TODO assigned_territories de una vez
+      // Traer TODO el historial de assigned_territories en una sola consulta
       const { data: allHistory, error } = await supabase
         .from('assigned_territories')
-        .select('id, territory_id, publisher_id, assigned_at, expires_at, returned_at, status, publishers(name), territories(id, name, zone(name))')
+        .select(`
+          id, 
+          territory_id, 
+          publisher_id, 
+          assigned_at, 
+          expires_at, 
+          returned_at, 
+          status, 
+          publishers(name), 
+          territories(id, name, zone_id, zone:zones(id, name))
+        `)
         .order('assigned_at', { ascending: false });
 
       if (error) throw error;
 
-      // Agrupar por zona y por territorio
-      const zones = {};
+      // Organizar los datos por zona y por territorio
+      const zoneMap = new Map();
 
+      // Primero agrupar por zona
       allHistory.forEach(record => {
         const territory = record.territories;
         const zoneName = territory.zone?.name || 'Sin zona';
-        if (!zones[zoneName]) zones[zoneName] = {};
-        if (!zones[zoneName][territory.id]) zones[zoneName][territory.id] = {
-          name: territory.name,
-          records: []
-        };
-        zones[zoneName][territory.id].records.push(record);
+        
+        if (!zoneMap.has(zoneName)) {
+          zoneMap.set(zoneName, new Map());
+        }
+        
+        const territoryMap = zoneMap.get(zoneName);
+        const territoryId = territory.id;
+        
+        if (!territoryMap.has(territoryId)) {
+          territoryMap.set(territoryId, {
+            name: territory.name,
+            records: []
+          });
+        }
+        
+        territoryMap.get(territoryId).records.push({
+          ...record,
+          territory_name: territory.name,
+          zone_name: zoneName,
+          publisher_name: record.publishers?.name || 'Desconocido'
+        });
       });
 
-      // Por cada zona, crear hoja
-      for (const [zoneName, territoriesInZone] of Object.entries(zones)) {
-        const sheet = XLSX.utils.aoa_to_sheet([[]]);
+      // Crear hoja de resumen
+      const summaryData = [
+        ['Reporte de Historial de Territorios'],
+        ['Generado el', formatDate(new Date().toISOString())],
+        [''],
+        ['Zonas', zoneMap.size],
+        ['Territorios', territories.length],
+        ['Registros de historial', allHistory.length]
+      ];
+      
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
+
+      // Para cada zona, crear una hoja
+      for (const [zoneName, territories] of zoneMap.entries()) {
+        const sheetData = [];
+        let currentRow = 0;
+        
+        // Para cada territorio en esta zona
         let currentCol = 0;
-
-        for (const [territoryId, territoryData] of Object.entries(territoriesInZone)) {
+        const territoriesArray = Array.from(territories.entries());
+        
+        for (const [territoryId, territoryData] of territoriesArray) {
           const { name, records } = territoryData;
-
-          XLSX.utils.sheet_add_aoa(sheet, [[`Territorio ${name}`]], { origin: { r: 0, c: currentCol } });
-          XLSX.utils.sheet_add_aoa(sheet, [columns], { origin: { r: 1, c: currentCol } });
-
+          
+          // Si es necesario empezar una nueva fila (para que quepan 3 territorios por fila)
+          if (currentCol > 0 && currentCol + columns.length > 20) {
+            // Añadir filas vacías entre bloques de territorios
+            const emptyRowsNeeded = 3; // Ajustar según necesidades
+            for (let i = 0; i < emptyRowsNeeded; i++) {
+              const emptyRow = Array(30).fill(''); // Ancho suficiente para cubrir todas las columnas
+              sheetData.push(emptyRow);
+              currentRow++;
+            }
+            currentCol = 0;
+          }
+          
+          // Añadir el título del territorio
+          // Asegurarnos de que hay suficientes filas para este territorio
+          while (sheetData.length <= currentRow) {
+            sheetData.push(Array(30).fill(''));
+          }
+          
+          // Título del territorio
+          sheetData[currentRow][currentCol] = `Territorio ${name}`;
+          currentRow++;
+          
+          // Encabezados de columna
+          while (sheetData.length <= currentRow) {
+            sheetData.push(Array(30).fill(''));
+          }
+          
+          for (let i = 0; i < columns.length; i++) {
+            sheetData[currentRow][currentCol + i] = columns[i];
+          }
+          currentRow++;
+          
+          // Datos del historial
           if (records.length > 0) {
-            records.forEach((rec, idx) => {
-              const row = [
+            records.forEach(record => {
+              while (sheetData.length <= currentRow) {
+                sheetData.push(Array(30).fill(''));
+              }
+              
+              const rowData = [
                 name,
                 zoneName,
-                rec.publishers?.name || 'Desconocido',
-                formatDate(rec.assigned_at),
-                rec.returned_at ? formatDate(rec.returned_at) : '—',
-                rec.expires_at ? formatDate(rec.expires_at) : '—',
-                getStatus(rec.status)
+                record.publisher_name,
+                formatDate(record.assigned_at),
+                record.returned_at ? formatDate(record.returned_at) : '—',
+                record.expires_at ? formatDate(record.expires_at) : '—',
+                getStatus(record.status)
               ];
-              XLSX.utils.sheet_add_aoa(sheet, [row], { origin: { r: idx + 2, c: currentCol } });
+              
+              for (let i = 0; i < rowData.length; i++) {
+                sheetData[currentRow][currentCol + i] = rowData[i];
+              }
+              
+              currentRow++;
             });
           } else {
+            // Si no hay registros para este territorio
+            while (sheetData.length <= currentRow) {
+              sheetData.push(Array(30).fill(''));
+            }
+            
             const emptyRow = [name, zoneName, 'N/A', 'Nunca asignado', 'N/A', 'N/A', 'Disponible'];
-            XLSX.utils.sheet_add_aoa(sheet, [emptyRow], { origin: { r: 2, c: currentCol } });
+            for (let i = 0; i < emptyRow.length; i++) {
+              sheetData[currentRow][currentCol + i] = emptyRow[i];
+            }
+            currentRow++;
           }
-
-          sheet['!cols'] = sheet['!cols'] || [];
-          for (let i = 0; i < columns.length; i++) {
-            sheet['!cols'][currentCol + i] = { wch: 18 };
-          }
-
+          
+          // Avanzar a la siguiente columna para el próximo territorio
+          // Dejar una columna vacía entre territorios
           currentCol += columns.length + 1;
+          
+          // Si es el último territorio o si el siguiente territorio no cabe, avanzar a la próxima fila
+          if (currentCol + columns.length > 20) {
+            currentRow += 2; // Dejar una fila vacía entre bloques de territorios
+            currentCol = 0;
+          }
         }
-
+        
+        // Convertir los datos a una hoja de Excel
+        const sheet = XLSX.utils.aoa_to_sheet(sheetData);
+        
+        // Ajustar anchos de columna
+        const colWidths = [];
+        for (let i = 0; i < 30; i++) {
+          colWidths.push({ wch: 15 }); // 15 caracteres de ancho
+        }
+        sheet['!cols'] = colWidths;
+        
+        // Nombre seguro para la hoja (Excel tiene limitaciones en los nombres de las hojas)
         const safeName = zoneName.substring(0, 30).replace(/[\\/\[\]\*\?:]/g, '_');
+        
+        // Agregar la hoja al libro
         XLSX.utils.book_append_sheet(workbook, sheet, safeName);
       }
 
+      // Descargar el archivo
       XLSX.writeFile(workbook, `Territorios_Historial_Completo.xlsx`);
       toast({ title: 'Completado', description: 'El archivo se ha descargado correctamente.' });
     } catch (err) {
@@ -105,7 +216,7 @@ const StatisticsExport = ({ territories }) => {
 
   return (
     <Button onClick={handleExport}>
-      <FileSpreadsheet className="mr-2 h-4 w-4" />
+      <FileText className="mr-2 h-4 w-4" />
       Exportar Historial Completo
     </Button>
   );
