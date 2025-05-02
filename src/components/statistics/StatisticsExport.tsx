@@ -37,6 +37,7 @@ const StatisticsExport = ({ territories }) => {
       const columns = ['Territorio', 'Zona', 'Publicador', 'Fecha asignación', 'Fecha devolución', 'Fecha expiración', 'Estado'];
 
       // Traer TODO el historial de assigned_territories en una sola consulta
+      // Corregido: especificar explícitamente la relación en publishers
       const { data: allHistory, error } = await supabase
         .from('assigned_territories')
         .select(`
@@ -47,7 +48,7 @@ const StatisticsExport = ({ territories }) => {
           expires_at, 
           returned_at, 
           status, 
-          publishers(name), 
+          publishers!assigned_territories_publisher_id_fkey(name), 
           territories(id, name, zone_id, zone:zones(id, name))
         `)
         .order('assigned_at', { ascending: false });
@@ -60,28 +61,30 @@ const StatisticsExport = ({ territories }) => {
       // Primero agrupar por zona
       allHistory.forEach(record => {
         const territory = record.territories;
-        const zoneName = territory.zone?.name || 'Sin zona';
+        const zoneName = territory?.zone?.name || 'Sin zona';
         
         if (!zoneMap.has(zoneName)) {
           zoneMap.set(zoneName, new Map());
         }
         
         const territoryMap = zoneMap.get(zoneName);
-        const territoryId = territory.id;
+        const territoryId = territory?.id;
         
-        if (!territoryMap.has(territoryId)) {
+        if (territoryId && !territoryMap.has(territoryId)) {
           territoryMap.set(territoryId, {
             name: territory.name,
             records: []
           });
         }
         
-        territoryMap.get(territoryId).records.push({
-          ...record,
-          territory_name: territory.name,
-          zone_name: zoneName,
-          publisher_name: record.publishers?.name || 'Desconocido'
-        });
+        if (territoryId) {
+          territoryMap.get(territoryId).records.push({
+            ...record,
+            territory_name: territory.name,
+            zone_name: zoneName,
+            publisher_name: record.publishers?.name || 'Desconocido'
+          });
+        }
       });
 
       // Crear hoja de resumen
