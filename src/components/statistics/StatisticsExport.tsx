@@ -5,17 +5,13 @@ import { Button } from "@/components/ui/button";
 import { FileSpreadsheet } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Territory } from '@/types/territory-types';
+import { TerritorySafeData } from '@/types/territory-types';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
 type StatisticsExportProps = {
-  territories: Territory[];
+  territories: TerritorySafeData[];
 };
-
-interface Publisher {
-  name: string;
-}
 
 interface AssignmentRecord {
   id: string;
@@ -25,7 +21,9 @@ interface AssignmentRecord {
   expires_at: string | null;
   returned_at: string | null;
   status: string;
-  publishers: Publisher;
+  publishers: {
+    name: string;
+  };
 }
 
 const StatisticsExport = ({ territories }: StatisticsExportProps) => {
@@ -41,7 +39,7 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
     }
   };
 
-  const getStatus = (status: string | null) => {
+  const getStatus = (status: string) => {
     switch (status) {
       case "assigned":
         return "Asignado";
@@ -69,7 +67,7 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
     });
 
     try {
-      console.log(`Starting export for ${territories.length} territories`);
+      console.log(`Iniciando exportación para ${territories.length} territorios`);
       
       // Create a new workbook
       const workbook = XLSX.utils.book_new();
@@ -80,271 +78,171 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
         'Zona': territory.zone?.name || 'Sin zona',
         'Estado': territory.last_assigned_at ? 'Asignado' : 'Disponible',
         'Última Asignación': territory.last_assigned_at ? formatDate(territory.last_assigned_at) : 'Nunca asignado',
-        'Última Devolución': territory.last_returned_at ? formatDate(territory.last_returned_at) : 'N/A',
         'Google Maps': territory.google_maps_link || 'N/A'
       }));
       
-      console.log(`Creating summary sheet with ${summaryRows.length} rows`);
+      // Add summary worksheet
+      const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
+      console.log("Hoja de resumen creada");
 
-      // Create summary worksheet
-      if (summaryRows.length > 0) {
-        try {
-          const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
-          XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
-          console.log("Summary sheet created successfully");
-        } catch (error) {
-          console.error("Error creating summary sheet:", error);
-          // Create empty summary sheet with headers if creation fails
-          const emptySummarySheet = XLSX.utils.aoa_to_sheet([
-            ['Territorio', 'Zona', 'Estado', 'Última Asignación', 'Última Devolución', 'Google Maps'],
-            ['Error al crear hoja de resumen', '', '', '', '', '']
-          ]);
-          XLSX.utils.book_append_sheet(workbook, emptySummarySheet, 'Resumen');
-        }
-      } else {
-        // Create empty summary sheet with headers if no data
-        const emptySummarySheet = XLSX.utils.aoa_to_sheet([
-          ['Territorio', 'Zona', 'Estado', 'Última Asignación', 'Última Devolución', 'Google Maps'],
-          ['No hay territorios', '', '', '', '', '']
-        ]);
-        XLSX.utils.book_append_sheet(workbook, emptySummarySheet, 'Resumen');
-      }
-      
-      // Collect all history data
-      const allHistoryData = [];
-      
-      // Process each territory to collect history
-      for (const territory of territories) {
-        console.log(`Fetching history for territory: ${territory.name} (${territory.id})`);
-        
-        try {
-          // Get territory history data
-          const { data: historyRecords, error: historyError } = await supabase
-            .from("assigned_territories")
-            .select(`
-              id,
-              territory_id,
-              publisher_id,
-              assigned_at,
-              expires_at,
-              returned_at,
-              status,
-              publishers(name)
-            `)
-            .eq("territory_id", territory.id)
-            .order("assigned_at", { ascending: false });
-          
-          if (historyError) {
-            console.error(`Error fetching history for territory ${territory.name}:`, historyError);
-            continue;
-          }
-          
-          console.log(`Retrieved ${historyRecords?.length || 0} history records for territory ${territory.name}`);
-          
-          if (historyRecords && historyRecords.length > 0) {
-            historyRecords.forEach((record: any) => {
-              const publisherName = record.publishers?.name || 'Desconocido';
-              
-              allHistoryData.push({
-                'Territorio': territory.name,
-                'Zona': territory.zone?.name || 'Sin zona',
-                'Publicador': publisherName,
-                'Fecha de asignación': formatDate(record.assigned_at),
-                'Fecha de expiración': record.expires_at ? formatDate(record.expires_at) : '—',
-                'Fecha de devolución': record.returned_at ? formatDate(record.returned_at) : '—',
-                'Estado': getStatus(record.status),
-                'Google Maps': territory.google_maps_link || 'N/A'
-              });
-            });
-          } else {
-            // If no history, add a single row with territory data
-            allHistoryData.push({
-              'Territorio': territory.name,
-              'Zona': territory.zone?.name || 'Sin zona',
-              'Publicador': 'N/A',
-              'Fecha de asignación': 'Nunca asignado',
-              'Fecha de expiración': 'N/A',
-              'Fecha de devolución': 'N/A',
-              'Estado': 'Disponible',
-              'Google Maps': territory.google_maps_link || 'N/A'
-            });
-          }
-        } catch (territoryError) {
-          console.error(`Error processing territory ${territory.name}:`, territoryError);
-          
-          // Add error record
-          allHistoryData.push({
-            'Territorio': territory.name,
-            'Zona': territory.zone?.name || 'Sin zona',
-            'Publicador': 'ERROR',
-            'Fecha de asignación': 'Error al procesar territorio',
-            'Fecha de expiración': 'N/A',
-            'Fecha de devolución': 'N/A',
-            'Estado': 'Error',
-            'Google Maps': territory.google_maps_link || 'N/A'
-          });
-        }
-      }
-      
-      // Create the complete history sheet
-      console.log(`Creating complete history sheet with ${allHistoryData.length} records`);
-      
-      if (allHistoryData.length > 0) {
-        try {
-          const historySheet = XLSX.utils.json_to_sheet(allHistoryData);
-          XLSX.utils.book_append_sheet(workbook, historySheet, 'Historial Completo');
-          console.log("History sheet created successfully");
-        } catch (error) {
-          console.error("Error creating history sheet:", error);
-          
-          // Create empty history sheet with headers if creation fails
-          const emptyHistorySheet = XLSX.utils.aoa_to_sheet([
-            ['Territorio', 'Zona', 'Publicador', 'Fecha de asignación', 'Fecha de expiración', 'Fecha de devolución', 'Estado', 'Google Maps'],
-            ['Error al crear hoja de historial', '', '', '', '', '', '', '']
-          ]);
-          XLSX.utils.book_append_sheet(workbook, emptyHistorySheet, 'Historial Completo');
-        }
-      } else {
-        // Create empty history sheet with headers if no data
-        const emptyHistorySheet = XLSX.utils.aoa_to_sheet([
-          ['Territorio', 'Zona', 'Publicador', 'Fecha de asignación', 'Fecha de expiración', 'Fecha de devolución', 'Estado', 'Google Maps'],
-          ['No hay registros de historial', '', '', '', '', '', '', '']
-        ]);
-        XLSX.utils.book_append_sheet(workbook, emptyHistorySheet, 'Historial Completo');
-      }
-      
-      // Process territories by zone
-      const territoriesByZone: Record<string, Territory[]> = {};
-      
-      // Group territories by zone for better organization
-      territories.forEach(territory => {
+      // Group territories by zone
+      const territoriesByZone = territories.reduce<Record<string, TerritorySafeData[]>>((groups, territory) => {
         const zoneName = territory.zone?.name || 'Sin zona';
-        if (!territoriesByZone[zoneName]) {
-          territoriesByZone[zoneName] = [];
+        if (!groups[zoneName]) {
+          groups[zoneName] = [];
         }
-        territoriesByZone[zoneName].push(territory);
-      });
+        groups[zoneName].push(territory);
+        return groups;
+      }, {});
       
-      console.log(`Processing ${Object.keys(territoriesByZone).length} zones`);
+      // All history records for all territories
+      const allHistoryRecords: any[] = [];
       
-      // Create zone-specific sheets
-      let zoneIndex = 1;
+      // Process each zone
       for (const [zoneName, zoneTerritories] of Object.entries(territoriesByZone)) {
-        // Create a safe sheet name - shorter and without special characters
-        const safeZoneName = `Zona ${zoneIndex++}`.substring(0, 30);
+        console.log(`Procesando zona: ${zoneName} con ${zoneTerritories.length} territorios`);
         
-        console.log(`Processing zone: ${zoneName} with ${zoneTerritories.length} territories as "${safeZoneName}"`);
+        // History records for this zone
+        const zoneHistoryRecords: any[] = [];
         
-        // Collect history data for this zone
-        const zoneHistoryData: any[] = [];
-        
+        // Process each territory in this zone
         for (const territory of zoneTerritories) {
           try {
-            // Get territory history data
-            const { data: zoneHistoryRecords, error: zoneHistoryError } = await supabase
+            console.log(`Obteniendo historial para territorio: ${territory.name} (${territory.id})`);
+            
+            const { data: historyData, error: historyError } = await supabase
               .from("assigned_territories")
               .select(`
-                id,
-                territory_id,
-                publisher_id,
-                assigned_at,
-                expires_at,
-                returned_at,
+                id, 
+                territory_id, 
+                publisher_id, 
+                assigned_at, 
+                expires_at, 
+                returned_at, 
                 status,
-                publishers(name)
+                publishers:publishers!assigned_territories_publisher_id_fkey(name)
               `)
               .eq("territory_id", territory.id)
               .order("assigned_at", { ascending: false });
-
-            if (zoneHistoryError) {
-              console.error(`Error fetching history for territory ${territory.name}:`, zoneHistoryError);
+              
+            if (historyError) {
+              console.error(`Error obteniendo historial para territorio ${territory.name}:`, historyError);
+              zoneHistoryRecords.push({
+                'Territorio': territory.name,
+                'Publicador': 'ERROR',
+                'Fecha de asignación': 'Error al obtener datos',
+                'Fecha de devolución': 'N/A',
+                'Fecha de expiración': 'N/A',
+                'Estado': 'Error',
+                'Google Maps': territory.google_maps_link || 'N/A'
+              });
               continue;
             }
-
-            if (zoneHistoryRecords && zoneHistoryRecords.length > 0) {
-              zoneHistoryRecords.forEach((record: any) => {
+            
+            if (historyData && historyData.length > 0) {
+              console.log(`Se encontraron ${historyData.length} registros para territorio ${territory.name}`);
+              
+              // Transform and add records to zone history and all history
+              historyData.forEach((record: any) => {
                 const publisherName = record.publishers?.name || 'Desconocido';
                 
-                zoneHistoryData.push({
+                const historyRow = {
                   'Territorio': territory.name,
                   'Publicador': publisherName,
                   'Fecha de asignación': formatDate(record.assigned_at),
-                  'Fecha de expiración': record.expires_at ? formatDate(record.expires_at) : '—',
                   'Fecha de devolución': record.returned_at ? formatDate(record.returned_at) : '—',
+                  'Fecha de expiración': record.expires_at ? formatDate(record.expires_at) : '—',
                   'Estado': getStatus(record.status),
                   'Google Maps': territory.google_maps_link || 'N/A'
+                };
+                
+                zoneHistoryRecords.push(historyRow);
+                
+                // Also add zone name to all history records
+                allHistoryRecords.push({
+                  ...historyRow,
+                  'Zona': territory.zone?.name || 'Sin zona'
                 });
               });
             } else {
-              // If no history, add a single row with territory data
-              zoneHistoryData.push({
+              console.log(`No se encontraron registros para territorio ${territory.name}`);
+              
+              const emptyRecord = {
                 'Territorio': territory.name,
                 'Publicador': 'N/A',
                 'Fecha de asignación': 'Nunca asignado',
-                'Fecha de expiración': 'N/A',
                 'Fecha de devolución': 'N/A',
+                'Fecha de expiración': 'N/A',
                 'Estado': 'Disponible',
                 'Google Maps': territory.google_maps_link || 'N/A'
+              };
+              
+              zoneHistoryRecords.push(emptyRecord);
+              
+              // Also add zone name to all history records
+              allHistoryRecords.push({
+                ...emptyRecord,
+                'Zona': territory.zone?.name || 'Sin zona'
               });
             }
-          } catch (territoryError) {
-            console.error(`Error processing territory ${territory.name}:`, territoryError);
+          } catch (error) {
+            console.error(`Error procesando territorio ${territory.name}:`, error);
             
-            // Add error record
-            zoneHistoryData.push({
+            zoneHistoryRecords.push({
               'Territorio': territory.name,
               'Publicador': 'ERROR',
               'Fecha de asignación': 'Error al procesar territorio',
-              'Fecha de expiración': 'N/A',
               'Fecha de devolución': 'N/A',
+              'Fecha de expiración': 'N/A',
               'Estado': 'Error',
               'Google Maps': territory.google_maps_link || 'N/A'
             });
           }
         }
         
-        console.log(`Creating zone sheet for ${zoneName} with ${zoneHistoryData.length} records`);
-        
-        // Create zone sheet only if we have data
-        if (zoneHistoryData.length > 0) {
+        // Create worksheet for this zone
+        if (zoneHistoryRecords.length > 0) {
+          // Create a safe sheet name (avoid special characters and excessive length)
+          // Replace any invalid characters and limit length
+          let safeZoneName = zoneName.substring(0, 30).replace(/[\\\/\[\]\*\?:]/g, '_');
+          
           try {
-            const zoneHistorySheet = XLSX.utils.json_to_sheet(zoneHistoryData);
-            XLSX.utils.book_append_sheet(workbook, zoneHistorySheet, safeZoneName);
-            console.log(`Zone sheet "${safeZoneName}" created successfully`);
+            console.log(`Creando hoja para zona "${safeZoneName}" con ${zoneHistoryRecords.length} registros`);
+            const zoneSheet = XLSX.utils.json_to_sheet(zoneHistoryRecords);
+            XLSX.utils.book_append_sheet(workbook, zoneSheet, safeZoneName);
+            console.log(`Hoja para zona "${safeZoneName}" creada correctamente`);
           } catch (error) {
-            console.error(`Error creating zone sheet "${safeZoneName}":`, error);
-            
-            // Try with a more generic name if failed
-            const fallbackName = `Zona ${zoneIndex}`;
-            try {
-              const zoneEmptySheet = XLSX.utils.aoa_to_sheet([
-                ['Territorio', 'Publicador', 'Fecha de asignación', 'Fecha de expiración', 'Fecha de devolución', 'Estado', 'Google Maps'],
-                [`Error al crear hoja para zona "${zoneName}"`, '', '', '', '', '', '']
-              ]);
-              XLSX.utils.book_append_sheet(workbook, zoneEmptySheet, fallbackName);
-              console.log(`Fallback zone sheet "${fallbackName}" created successfully`);
-            } catch (fallbackError) {
-              console.error(`Error creating fallback zone sheet for "${zoneName}":`, fallbackError);
-              // Continue with next zone if both attempts fail
-            }
+            console.error(`Error creando hoja para zona "${safeZoneName}":`, error);
           }
         } else {
-          // Create empty zone sheet with headers if no data
-          try {
-            const zoneEmptySheet = XLSX.utils.aoa_to_sheet([
-              ['Territorio', 'Publicador', 'Fecha de asignación', 'Fecha de expiración', 'Fecha de devolución', 'Estado', 'Google Maps'],
-              [`No hay registros para zona "${zoneName}"`, '', '', '', '', '', '']
-            ]);
-            XLSX.utils.book_append_sheet(workbook, zoneEmptySheet, safeZoneName);
-            console.log(`Empty zone sheet "${safeZoneName}" created successfully`);
-          } catch (error) {
-            console.error(`Error creating empty zone sheet for "${zoneName}":`, error);
-          }
+          console.log(`No hay registros para zona "${zoneName}", no se creará hoja`);
         }
       }
       
+      // Create complete history sheet with all records
+      if (allHistoryRecords.length > 0) {
+        try {
+          console.log(`Creando hoja de historial completo con ${allHistoryRecords.length} registros`);
+          const historySheet = XLSX.utils.json_to_sheet(allHistoryRecords);
+          XLSX.utils.book_append_sheet(workbook, historySheet, 'Historial Completo');
+          console.log("Hoja de historial completo creada correctamente");
+        } catch (error) {
+          console.error("Error creando hoja de historial completo:", error);
+        }
+      } else {
+        console.log("No hay registros de historial para ningún territorio");
+        
+        // Create empty history sheet
+        const emptyHistorySheet = XLSX.utils.aoa_to_sheet([
+          ['Territorio', 'Zona', 'Publicador', 'Fecha de asignación', 'Fecha de devolución', 'Fecha de expiración', 'Estado', 'Google Maps'],
+          ['No hay registros de historial', '', '', '', '', '', '', '']
+        ]);
+        XLSX.utils.book_append_sheet(workbook, emptyHistorySheet, 'Historial Completo');
+      }
+      
       // Generate file and download
-      console.log("Generating Excel file...");
+      console.log("Generando archivo Excel...");
       XLSX.writeFile(workbook, `Territorios_Historial_Completo.xlsx`);
       
       toast({
@@ -352,7 +250,7 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
         description: "El archivo con el historial completo de territorios se ha descargado correctamente.",
       });
     } catch (error) {
-      console.error("Error exporting territories:", error);
+      console.error("Error exportando territorios:", error);
       toast({
         title: "Error",
         description: "Hubo un problema al exportar los datos de territorios. Revisa la consola para más detalles.",
