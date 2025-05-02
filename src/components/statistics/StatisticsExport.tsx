@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { TerritorySafeData } from '@/types/territory-types';
 
 interface Territory {
   id: string;
@@ -22,7 +23,8 @@ interface Publisher {
   name: string;
 }
 
-interface AssignmentRecord {
+// This interface defines what we expect to get from Supabase
+interface SupabaseAssignmentRecord {
   id: string;
   territory_id: string;
   publisher_id: string;
@@ -30,11 +32,15 @@ interface AssignmentRecord {
   expires_at: string | null;
   returned_at: string | null;
   status: string | null;
-  publishers?: Publisher;
-  territories?: Territory;
-  territory_name?: string;
-  zone_name?: string;
-  publisher_name?: string;
+  publishers: Publisher | null;
+  territories: Territory | null;
+}
+
+// This is our processed record with additional fields
+interface AssignmentRecord extends SupabaseAssignmentRecord {
+  territory_name: string;
+  zone_name: string;
+  publisher_name: string;
 }
 
 interface TerritoryHistoryData {
@@ -42,15 +48,19 @@ interface TerritoryHistoryData {
   records: AssignmentRecord[];
 }
 
-const StatisticsExport = ({ territories }) => {
+interface StatisticsExportProps {
+  territories: TerritorySafeData[];
+}
+
+const StatisticsExport: React.FC<StatisticsExportProps> = ({ territories }) => {
   const { toast } = useToast();
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A';
     return format(new Date(dateString), 'dd MMM yyyy', { locale: es });
   };
 
-  const getStatus = (status) => {
+  const getStatus = (status: string | null) => {
     switch (status) {
       case 'assigned': return 'Asignado';
       case 'returned': return 'Devuelto';
@@ -96,7 +106,7 @@ const StatisticsExport = ({ territories }) => {
       const zoneMap = new Map<string, Map<string, TerritoryHistoryData>>();
 
       // Primero agrupar por zona
-      allHistory.forEach((record: AssignmentRecord) => {
+      (allHistory as SupabaseAssignmentRecord[]).forEach((record) => {
         const territory = record.territories;
         if (!territory) return; // Skip if territory is missing
         
@@ -116,14 +126,15 @@ const StatisticsExport = ({ territories }) => {
           });
         }
         
-        const publisher = record.publishers as unknown as Publisher;
-        
-        territoryMap.get(territoryId)!.records.push({
+        // Process the record to ensure it matches our AssignmentRecord interface
+        const processedRecord: AssignmentRecord = {
           ...record,
           territory_name: territory.name,
           zone_name: zoneName,
-          publisher_name: publisher?.name || 'Desconocido'
-        });
+          publisher_name: record.publishers?.name || 'Desconocido'
+        };
+        
+        territoryMap.get(territoryId)!.records.push(processedRecord);
       });
 
       // Crear hoja de resumen
@@ -141,7 +152,7 @@ const StatisticsExport = ({ territories }) => {
 
       // Para cada zona, crear una hoja
       for (const [zoneName, territories] of Array.from(zoneMap.entries())) {
-        const sheetData = [];
+        const sheetData: any[][] = [];
         let currentRow = 0;
         
         // Para cada territorio en esta zona
