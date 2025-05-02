@@ -8,6 +8,40 @@ import { FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+interface Territory {
+  id: string;
+  name: string;
+  zone_id: string | null;
+  zone?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+interface Publisher {
+  name: string;
+}
+
+interface AssignmentRecord {
+  id: string;
+  territory_id: string;
+  publisher_id: string;
+  assigned_at: string;
+  expires_at: string | null;
+  returned_at: string | null;
+  status: string | null;
+  publishers?: Publisher;
+  territories?: Territory;
+  territory_name?: string;
+  zone_name?: string;
+  publisher_name?: string;
+}
+
+interface TerritoryHistoryData {
+  name: string;
+  records: AssignmentRecord[];
+}
+
 const StatisticsExport = ({ territories }) => {
   const { toast } = useToast();
 
@@ -37,7 +71,6 @@ const StatisticsExport = ({ territories }) => {
       const columns = ['Territorio', 'Zona', 'Publicador', 'Fecha asignación', 'Fecha devolución', 'Fecha expiración', 'Estado'];
 
       // Traer TODO el historial de assigned_territories en una sola consulta
-      // Corregido: especificar explícitamente la relación en publishers
       const { data: allHistory, error } = await supabase
         .from('assigned_territories')
         .select(`
@@ -48,43 +81,49 @@ const StatisticsExport = ({ territories }) => {
           expires_at, 
           returned_at, 
           status, 
-          publishers!assigned_territories_publisher_id_fkey(name), 
-          territories(id, name, zone_id, zone:zones(id, name))
+          publishers:publisher_id(name), 
+          territories:territory_id(id, name, zone_id, zone:zones(id, name))
         `)
         .order('assigned_at', { ascending: false });
 
       if (error) throw error;
 
+      if (!allHistory || !Array.isArray(allHistory)) {
+        throw new Error('No se pudo recuperar el historial');
+      }
+
       // Organizar los datos por zona y por territorio
-      const zoneMap = new Map();
+      const zoneMap = new Map<string, Map<string, TerritoryHistoryData>>();
 
       // Primero agrupar por zona
-      allHistory.forEach(record => {
+      allHistory.forEach((record: AssignmentRecord) => {
         const territory = record.territories;
-        const zoneName = territory?.zone?.name || 'Sin zona';
+        if (!territory) return; // Skip if territory is missing
+        
+        const zoneName = territory.zone?.name || 'Sin zona';
         
         if (!zoneMap.has(zoneName)) {
-          zoneMap.set(zoneName, new Map());
+          zoneMap.set(zoneName, new Map<string, TerritoryHistoryData>());
         }
         
-        const territoryMap = zoneMap.get(zoneName);
-        const territoryId = territory?.id;
+        const territoryMap = zoneMap.get(zoneName)!;
+        const territoryId = territory.id;
         
-        if (territoryId && !territoryMap.has(territoryId)) {
+        if (!territoryMap.has(territoryId)) {
           territoryMap.set(territoryId, {
             name: territory.name,
             records: []
           });
         }
         
-        if (territoryId) {
-          territoryMap.get(territoryId).records.push({
-            ...record,
-            territory_name: territory.name,
-            zone_name: zoneName,
-            publisher_name: record.publishers?.name || 'Desconocido'
-          });
-        }
+        const publisher = record.publishers as unknown as Publisher;
+        
+        territoryMap.get(territoryId)!.records.push({
+          ...record,
+          territory_name: territory.name,
+          zone_name: zoneName,
+          publisher_name: publisher?.name || 'Desconocido'
+        });
       });
 
       // Crear hoja de resumen
@@ -101,7 +140,7 @@ const StatisticsExport = ({ territories }) => {
       XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
 
       // Para cada zona, crear una hoja
-      for (const [zoneName, territories] of zoneMap.entries()) {
+      for (const [zoneName, territories] of Array.from(zoneMap.entries())) {
         const sheetData = [];
         let currentRow = 0;
         
