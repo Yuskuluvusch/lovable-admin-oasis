@@ -96,17 +96,36 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
         return groups;
       }, {});
       
-      // For all history by territory in columns format
-      const allTerritoriesHistory: Record<string, any[]> = {};
-      
-      // Process each zone
+      // Process each zone for zone-specific sheets
       for (const [zoneName, zoneTerritories] of Object.entries(territoriesByZone)) {
         console.log(`Procesando zona: ${zoneName} con ${zoneTerritories.length} territorios`);
         
-        // For zone-specific history with territories in columns
-        const zoneTerritoriesHistory: Record<string, any[]> = {};
+        // Create a safe zone name for the sheet
+        let safeZoneName = zoneName.substring(0, 25).replace(/[\\\/\[\]\*\?:]/g, '_');
         
-        // Process each territory in this zone
+        // Prepare data for zone sheet
+        const zoneSheetHeaders = [];
+        const zoneData: any[][] = [];
+        
+        // Headers for each territory: Territorio, Publicador, Asignado, Devuelto, Estado
+        for (const territory of zoneTerritories) {
+          zoneSheetHeaders.push(
+            territory.name, // Territorio
+            'Publicador',
+            'Asignado',
+            'Devuelto',
+            'Estado',
+            '' // Empty column as separator
+          );
+        }
+        
+        // Add headers to the zone data
+        zoneData.push(zoneSheetHeaders);
+        
+        // Get history data for each territory in this zone
+        const territoriesHistory: Record<string, AssignmentRecord[]> = {};
+        
+        // Fetch history for all territories in this zone
         for (const territory of zoneTerritories) {
           try {
             console.log(`Obteniendo historial para territorio: ${territory.name} (${territory.id})`);
@@ -131,151 +150,170 @@ const StatisticsExport = ({ territories }: StatisticsExportProps) => {
               continue;
             }
             
-            // Initialize this territory in the history records if not exists
-            if (!allTerritoriesHistory[territory.name]) {
-              allTerritoriesHistory[territory.name] = [];
-            }
-            
-            if (!zoneTerritoriesHistory[territory.name]) {
-              zoneTerritoriesHistory[territory.name] = [];
-            }
-            
-            if (historyData && historyData.length > 0) {
-              console.log(`Se encontraron ${historyData.length} registros para territorio ${territory.name}`);
-              
-              // Transform and add records to territory history
-              historyData.forEach((record: any) => {
-                const publisherName = record.publishers?.name || 'Desconocido';
-                
-                const historyItem = {
-                  'Publicador': publisherName,
-                  'Fecha asignación': formatDate(record.assigned_at),
-                  'Fecha devolución': record.returned_at ? formatDate(record.returned_at) : '—',
-                  'Fecha expiración': record.expires_at ? formatDate(record.expires_at) : '—',
-                  'Estado': getStatus(record.status),
-                  'Maps': territory.google_maps_link || 'N/A',
-                  'Zona': territory.zone?.name || 'Sin zona'
-                };
-                
-                allTerritoriesHistory[territory.name].push(historyItem);
-                zoneTerritoriesHistory[territory.name].push(historyItem);
-              });
-            } else {
-              console.log(`No se encontraron registros para territorio ${territory.name}`);
-              
-              // Add a placeholder for territories with no history
-              const emptyRecord = {
-                'Publicador': 'N/A',
-                'Fecha asignación': 'Nunca asignado',
-                'Fecha devolución': 'N/A',
-                'Fecha expiración': 'N/A',
-                'Estado': 'Disponible',
-                'Maps': territory.google_maps_link || 'N/A',
-                'Zona': territory.zone?.name || 'Sin zona'
-              };
-              
-              allTerritoriesHistory[territory.name].push(emptyRecord);
-              zoneTerritoriesHistory[territory.name].push(emptyRecord);
-            }
+            territoriesHistory[territory.id] = historyData || [];
+            console.log(`Encontrados ${historyData?.length || 0} registros para territorio ${territory.name}`);
           } catch (error) {
             console.error(`Error procesando territorio ${territory.name}:`, error);
+            territoriesHistory[territory.id] = [];
           }
         }
         
-        // Generate zone-specific sheet with territories in columns
-        try {
-          if (Object.keys(zoneTerritoriesHistory).length > 0) {
-            // Create a safe zone name
-            let safeZoneName = zoneName.substring(0, 25).replace(/[\\\/\[\]\*\?:]/g, '_');
+        // Find the maximum number of history records for any territory in this zone
+        const maxHistoryCount = Math.max(
+          1, // At least one row even if no history
+          ...Object.values(territoriesHistory).map(history => history.length)
+        );
+        
+        // Generate rows based on history records
+        for (let i = 0; i < maxHistoryCount; i++) {
+          const row: any[] = [];
+          
+          // For each territory, add the history data or empty cells
+          for (const territory of zoneTerritories) {
+            const history = territoriesHistory[territory.id] || [];
+            const historyRecord = i < history.length ? history[i] : null;
             
-            // Generate data arrays for this zone
-            const zoneHeaders = ['Movimiento', ...Object.keys(zoneTerritoriesHistory)];
-            
-            // Find max records for any territory in this zone
-            const maxRecords = Math.max(...Object.values(zoneTerritoriesHistory).map(records => records.length));
-            
-            // Prepare rows for the zone sheet
-            const zoneRows = [];
-            
-            // Headers row (territory names)
-            zoneRows.push(zoneHeaders);
-            
-            // For each history record index
-            for (let i = 0; i < maxRecords; i++) {
-              const row = [`Movimiento ${i+1}`];
-              
-              // For each territory, add the corresponding history record or empty cells
-              Object.keys(zoneTerritoriesHistory).forEach(territoryName => {
-                const records = zoneTerritoriesHistory[territoryName];
-                if (i < records.length) {
-                  // Format multiline cell content
-                  const record = records[i];
-                  const cellContent = `${record['Publicador']}\nAsignado: ${record['Fecha asignación']}\nDevuelto: ${record['Fecha devolución']}\nEstado: ${record['Estado']}`;
-                  row.push(cellContent);
-                } else {
-                  row.push('');
-                }
-              });
-              
-              zoneRows.push(row);
+            if (i === 0) {
+              // For the first row, include the territory name
+              row.push(territory.name);
+            } else {
+              // For subsequent rows, repeat territory name
+              row.push('');
             }
             
-            // Create the sheet
-            const zoneSheet = XLSX.utils.aoa_to_sheet(zoneRows);
-            XLSX.utils.book_append_sheet(workbook, zoneSheet, safeZoneName);
-            console.log(`Hoja para zona "${safeZoneName}" creada correctamente con ${zoneRows.length} filas`);
+            if (historyRecord) {
+              // Add history details: Publicador, Asignado, Devuelto, Estado
+              row.push(
+                historyRecord.publishers?.name || 'Desconocido',
+                formatDate(historyRecord.assigned_at),
+                historyRecord.returned_at ? formatDate(historyRecord.returned_at) : '—',
+                getStatus(historyRecord.status)
+              );
+            } else {
+              // Add empty cells if no history for this row
+              row.push(i === 0 ? 'Sin historial' : '', '', '', '');
+            }
+            
+            // Add empty cell as separator
+            row.push('');
           }
+          
+          zoneData.push(row);
+        }
+        
+        // Create and add the zone worksheet
+        try {
+          const zoneSheet = XLSX.utils.aoa_to_sheet(zoneData);
+          XLSX.utils.book_append_sheet(workbook, zoneSheet, safeZoneName);
+          console.log(`Hoja para zona "${safeZoneName}" creada con ${zoneData.length} filas`);
         } catch (error) {
           console.error(`Error creando hoja para zona "${zoneName}":`, error);
         }
       }
       
-      // Generate complete history sheet with all territories
+      // Create a complete history sheet with all territories
       try {
-        if (Object.keys(allTerritoriesHistory).length > 0) {
-          // Generate data arrays for complete history
-          const historyHeaders = ['Movimiento', ...Object.keys(allTerritoriesHistory)];
-          
-          // Find max records for any territory
-          const maxRecords = Math.max(...Object.values(allTerritoriesHistory).map(records => records.length));
-          
-          // Prepare rows for the complete history sheet
-          const historyRows = [];
-          
-          // Headers row (territory names)
-          historyRows.push(historyHeaders);
-          
-          // For each history record index
-          for (let i = 0; i < maxRecords; i++) {
-            const row = [`Movimiento ${i+1}`];
+        // Prepare data for the complete history sheet
+        const allSheetHeaders = [];
+        const allData: any[][] = [];
+        
+        // Headers for each territory: Territorio, Publicador, Asignado, Devuelto, Estado
+        for (const territory of territories) {
+          allSheetHeaders.push(
+            territory.name, // Territorio
+            'Publicador',
+            'Asignado',
+            'Devuelto',
+            'Estado',
+            '' // Empty column as separator
+          );
+        }
+        
+        // Add headers to the all data
+        allData.push(allSheetHeaders);
+        
+        // Get history data for each territory
+        const allTerritoriesHistory: Record<string, AssignmentRecord[]> = {};
+        
+        // Fetch history for all territories
+        for (const territory of territories) {
+          try {
+            console.log(`Obteniendo historial para territorio (global): ${territory.name} (${territory.id})`);
             
-            // For each territory, add the corresponding history record or empty cells
-            Object.keys(allTerritoriesHistory).forEach(territoryName => {
-              const records = allTerritoriesHistory[territoryName];
-              if (i < records.length) {
-                // Format multiline cell content
-                const record = records[i];
-                const cellContent = `${record['Publicador']}\nAsignado: ${record['Fecha asignación']}\nDevuelto: ${record['Fecha devolución']}\nEstado: ${record['Estado']}\nZona: ${record['Zona']}`;
-                row.push(cellContent);
-              } else {
-                row.push('');
-              }
-            });
+            const { data: historyData, error: historyError } = await supabase
+              .from("assigned_territories")
+              .select(`
+                id, 
+                territory_id, 
+                publisher_id, 
+                assigned_at, 
+                expires_at, 
+                returned_at, 
+                status,
+                publishers:publishers!assigned_territories_publisher_id_fkey(name)
+              `)
+              .eq("territory_id", territory.id)
+              .order("assigned_at", { ascending: false });
+              
+            if (historyError) {
+              console.error(`Error obteniendo historial global para territorio ${territory.name}:`, historyError);
+              continue;
+            }
             
-            historyRows.push(row);
+            allTerritoriesHistory[territory.id] = historyData || [];
+          } catch (error) {
+            console.error(`Error procesando territorio ${territory.name}:`, error);
+            allTerritoriesHistory[territory.id] = [];
+          }
+        }
+        
+        // Find the maximum number of history records for any territory
+        const maxAllHistoryCount = Math.max(
+          1, // At least one row even if no history
+          ...Object.values(allTerritoriesHistory).map(history => history.length)
+        );
+        
+        // Generate rows based on history records
+        for (let i = 0; i < maxAllHistoryCount; i++) {
+          const row: any[] = [];
+          
+          // For each territory, add the history data or empty cells
+          for (const territory of territories) {
+            const history = allTerritoriesHistory[territory.id] || [];
+            const historyRecord = i < history.length ? history[i] : null;
+            
+            if (i === 0) {
+              // For the first row, include the territory name
+              row.push(territory.name);
+            } else {
+              // For subsequent rows, repeat territory name
+              row.push('');
+            }
+            
+            if (historyRecord) {
+              // Add history details: Publicador, Asignado, Devuelto, Estado
+              row.push(
+                historyRecord.publishers?.name || 'Desconocido',
+                formatDate(historyRecord.assigned_at),
+                historyRecord.returned_at ? formatDate(historyRecord.returned_at) : '—',
+                getStatus(historyRecord.status)
+              );
+            } else {
+              // Add empty cells if no history for this row
+              row.push(i === 0 ? 'Sin historial' : '', '', '', '');
+            }
+            
+            // Add empty cell as separator
+            row.push('');
           }
           
-          // Create the sheet
-          const historySheet = XLSX.utils.aoa_to_sheet(historyRows);
-          XLSX.utils.book_append_sheet(workbook, historySheet, 'Historial Completo');
-          console.log(`Hoja de historial completo creada con ${historyRows.length} filas`);
-        } else {
-          // Create empty history sheet if no history data
-          const emptyHistorySheet = XLSX.utils.aoa_to_sheet([
-            ['No hay registros de historial disponibles'],
-          ]);
-          XLSX.utils.book_append_sheet(workbook, emptyHistorySheet, 'Historial Completo');
+          allData.push(row);
         }
+        
+        // Create and add the complete history worksheet
+        const allHistorySheet = XLSX.utils.aoa_to_sheet(allData);
+        XLSX.utils.book_append_sheet(workbook, allHistorySheet, 'Historial Completo');
+        console.log(`Hoja de historial completo creada con ${allData.length} filas`);
       } catch (error) {
         console.error("Error creando hoja de historial completo:", error);
         
