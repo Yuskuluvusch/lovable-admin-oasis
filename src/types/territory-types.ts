@@ -30,6 +30,7 @@ export interface TerritoryAssignment {
   publisher?: {
     name: string;
   };
+  publisher_name?: string; // Add this field for compatibility
 }
 
 export interface TerritoryHistory {
@@ -77,4 +78,11 @@ export interface AppSettings {
   territory_link_days: number;
   created_at: string;
   updated_at: string;
+}
+
+// Add this interface for the export functionality
+export interface AssignmentRecord extends TerritoryAssignment {
+  publisher_name: string;
+  territory_name?: string;
+  zone_name?: string;
 }

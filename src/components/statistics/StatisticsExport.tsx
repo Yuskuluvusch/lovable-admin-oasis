@@ -1,358 +1,394 @@
-
-import React from 'react';
-import * as XLSX from 'xlsx';
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileSpreadsheet } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "lucide-react";
+import { CalendarDateRangePicker } from "@/components/ui/calendar-date-range-picker";
+import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { TerritorySafeData } from '@/types/territory-types';
+import { DateRange } from "react-day-picker";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
+import { utils, writeFile } from "xlsx";
+import { TerritoryAssignment, AssignmentRecord } from "@/types/territory-types";
 
-type StatisticsExportProps = {
-  territories: TerritorySafeData[];
-};
-
-interface AssignmentRecord {
+interface Territory {
   id: string;
-  territory_id: string;
-  publisher_id: string;
-  assigned_at: string;
-  expires_at: string | null;
-  returned_at: string | null;
-  status: string;
-  publishers: {
-    name: string;
-  };
+  name: string;
 }
 
-const StatisticsExport = ({ territories }: StatisticsExportProps) => {
-  const { toast } = useToast();
+interface Publisher {
+  id: string;
+  name: string;
+}
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
+const StatisticsExport = () => {
+  const [territories, setTerritories] = useState<Territory[]>([]);
+  const [publishers, setPublishers] = useState<Publisher[]>([]);
+  const [selectedTerritory, setSelectedTerritory] = useState<string | null>(null);
+  const [selectedPublisher, setSelectedPublisher] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [allAssignments, setAllAssignments] = useState<AssignmentRecord[]>([]);
+  const [currentAssignmentsCount, setCurrentAssignmentsCount] = useState<number>(0);
+  const [expiredAssignmentsCount, setExpiredAssignmentsCount] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    fetchTerritories();
+    fetchPublishers();
+    fetchAssignmentsForExport();
+  }, []);
+
+  const fetchTerritories = async () => {
     try {
-      return format(new Date(dateString), "dd MMM yyyy", { locale: es });
+      const { data, error } = await supabase.from("territories").select("id, name");
+      if (error) {
+        throw error;
+      }
+      setTerritories(data || []);
     } catch (error) {
-      console.error("Error formatting date:", dateString, error);
-      return 'Fecha inválida';
+      console.error("Error fetching territories:", error);
     }
   };
 
-  const getStatus = (status: string) => {
-    switch (status) {
-      case "assigned":
-        return "Asignado";
-      case "returned":
-        return "Devuelto";
-      default:
-        return "Desconocido";
-    }
-  };
-
-  const handleExport = async () => {
-    if (territories.length === 0) {
-      toast({
-        title: "No hay territorios",
-        description: "No hay territorios para exportar.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Show loading toast
-    toast({
-      title: "Exportando datos",
-      description: "Recopilando el historial de todos los territorios...",
-    });
-
+  const fetchPublishers = async () => {
     try {
-      console.log(`Iniciando exportación para ${territories.length} territorios`);
-      
-      // Create a new workbook
-      const workbook = XLSX.utils.book_new();
-      
-      // Create summary worksheet data
-      const summaryRows = territories.map(territory => ({
-        'Territorio': territory.name,
-        'Zona': territory.zone?.name || 'Sin zona',
-        'Estado': territory.last_assigned_at ? 'Asignado' : 'Disponible',
-        'Última Asignación': territory.last_assigned_at ? formatDate(territory.last_assigned_at) : 'Nunca asignado',
-        'Google Maps': territory.google_maps_link || 'N/A'
-      }));
-      
-      // Add summary worksheet
-      const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
-      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
-      console.log("Hoja de resumen creada");
+      const { data, error } = await supabase.from("publishers").select("id, name");
+      if (error) {
+        throw error;
+      }
+      setPublishers(data || []);
+    } catch (error) {
+      console.error("Error fetching publishers:", error);
+    }
+  };
 
-      // Group territories by zone
-      const territoriesByZone = territories.reduce<Record<string, TerritorySafeData[]>>((groups, territory) => {
-        const zoneName = territory.zone?.name || 'Sin zona';
-        if (!groups[zoneName]) {
-          groups[zoneName] = [];
-        }
-        groups[zoneName].push(territory);
-        return groups;
-      }, {});
-      
-      // Process each zone for zone-specific sheets
-      for (const [zoneName, zoneTerritories] of Object.entries(territoriesByZone)) {
-        console.log(`Procesando zona: ${zoneName} con ${zoneTerritories.length} territorios`);
-        
-        // Create a safe zone name for the sheet
-        let safeZoneName = zoneName.substring(0, 25).replace(/[\\\/\[\]\*\?:]/g, '_');
-        
-        // Prepare data for zone sheet
-        const zoneSheetHeaders = [];
-        const zoneData: any[][] = [];
-        
-        // Headers for each territory: Territorio, Publicador, Asignado, Devuelto, Estado
-        for (const territory of zoneTerritories) {
-          zoneSheetHeaders.push(
-            territory.name, // Territorio
-            'Publicador',
-            'Asignado',
-            'Devuelto',
-            'Estado',
-            '' // Empty column as separator
-          );
-        }
-        
-        // Add headers to the zone data
-        zoneData.push(zoneSheetHeaders);
-        
-        // Get history data for each territory in this zone
-        const territoriesHistory: Record<string, AssignmentRecord[]> = {};
-        
-        // Fetch history for all territories in this zone
-        for (const territory of zoneTerritories) {
-          try {
-            console.log(`Obteniendo historial para territorio: ${territory.name} (${territory.id})`);
-            
-            const { data: historyData, error: historyError } = await supabase
-              .from("assigned_territories")
-              .select(`
-                id, 
-                territory_id, 
-                publisher_id, 
-                assigned_at, 
-                expires_at, 
-                returned_at, 
-                status,
-                publishers:publishers!assigned_territories_publisher_id_fkey(name)
-              `)
-              .eq("territory_id", territory.id)
-              .order("assigned_at", { ascending: false });
-              
-            if (historyError) {
-              console.error(`Error obteniendo historial para territorio ${territory.name}:`, historyError);
-              continue;
-            }
-            
-            territoriesHistory[territory.id] = historyData || [];
-            console.log(`Encontrados ${historyData?.length || 0} registros para territorio ${territory.name}`);
-          } catch (error) {
-            console.error(`Error procesando territorio ${territory.name}:`, error);
-            territoriesHistory[territory.id] = [];
-          }
-        }
-        
-        // Find the maximum number of history records for any territory in this zone
-        const maxHistoryCount = Math.max(
-          1, // At least one row even if no history
-          ...Object.values(territoriesHistory).map(history => history.length)
+const fetchAssignmentsForExport = async () => {
+  setIsLoading(true);
+  
+  try {
+    const { data, error } = await supabase
+      .from("assigned_territories")
+      .select(`
+        id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
+        publishers:publishers!assigned_territories_publisher_id_fkey(name)
+      `)
+      .order("assigned_at", { ascending: false });
+    
+    if (error) {
+      throw error;
+    }
+    
+    // Transform data type to ensure it matches AssignmentRecord
+    const assignmentRecords: AssignmentRecord[] = data.map(item => ({
+      id: item.id,
+      territory_id: item.territory_id,
+      publisher_id: item.publisher_id,
+      assigned_at: item.assigned_at,
+      expires_at: item.expires_at,
+      status: item.status || "",
+      token: item.token,
+      returned_at: item.returned_at,
+      publisher_name: item.publishers?.name || "Unknown"
+    }));
+    
+    setAllAssignments(assignmentRecords);
+    
+    const currentAssignments = assignmentRecords.filter(
+      (a) => a.status === "assigned" && !a.returned_at
+    );
+    const expiredAssignments = assignmentRecords.filter(
+      (a) =>
+        a.status === "assigned" &&
+        !a.returned_at &&
+        a.expires_at &&
+        new Date(a.expires_at) < new Date()
+    );
+    
+    setCurrentAssignmentsCount(currentAssignments.length);
+    setExpiredAssignmentsCount(expiredAssignments.length);
+    
+  } catch (error) {
+    console.error("Error fetching assignments for export:", error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  const exportTerritoriesByAssignment = async () => {
+    try {
+      setExporting(true);
+
+      // Apply filters
+      let filteredAssignments = [...allAssignments];
+      if (selectedTerritory) {
+        filteredAssignments = filteredAssignments.filter(
+          (a) => a.territory_id === selectedTerritory
         );
-        
-        // Generate rows based on history records
-        for (let i = 0; i < maxHistoryCount; i++) {
-          const row: any[] = [];
-          
-          // For each territory, add the history data or empty cells
-          for (const territory of zoneTerritories) {
-            const history = territoriesHistory[territory.id] || [];
-            const historyRecord = i < history.length ? history[i] : null;
-            
-            if (i === 0) {
-              // For the first row, include the territory name
-              row.push(territory.name);
-            } else {
-              // For subsequent rows, repeat territory name
-              row.push('');
-            }
-            
-            if (historyRecord) {
-              // Add history details: Publicador, Asignado, Devuelto, Estado
-              row.push(
-                historyRecord.publishers?.name || 'Desconocido',
-                formatDate(historyRecord.assigned_at),
-                historyRecord.returned_at ? formatDate(historyRecord.returned_at) : '—',
-                getStatus(historyRecord.status)
-              );
-            } else {
-              // Add empty cells if no history for this row
-              row.push(i === 0 ? 'Sin historial' : '', '', '', '');
-            }
-            
-            // Add empty cell as separator
-            row.push('');
-          }
-          
-          zoneData.push(row);
-        }
-        
-        // Create and add the zone worksheet
-        try {
-          const zoneSheet = XLSX.utils.aoa_to_sheet(zoneData);
-          XLSX.utils.book_append_sheet(workbook, zoneSheet, safeZoneName);
-          console.log(`Hoja para zona "${safeZoneName}" creada con ${zoneData.length} filas`);
-        } catch (error) {
-          console.error(`Error creando hoja para zona "${zoneName}":`, error);
-        }
       }
-      
-      // Create a complete history sheet with all territories
-      try {
-        // Prepare data for the complete history sheet
-        const allSheetHeaders = [];
-        const allData: any[][] = [];
-        
-        // Headers for each territory: Territorio, Publicador, Asignado, Devuelto, Estado
-        for (const territory of territories) {
-          allSheetHeaders.push(
-            territory.name, // Territorio
-            'Publicador',
-            'Asignado',
-            'Devuelto',
-            'Estado',
-            '' // Empty column as separator
-          );
-        }
-        
-        // Add headers to the all data
-        allData.push(allSheetHeaders);
-        
-        // Get history data for each territory
-        const allTerritoriesHistory: Record<string, AssignmentRecord[]> = {};
-        
-        // Fetch history for all territories
-        for (const territory of territories) {
-          try {
-            console.log(`Obteniendo historial para territorio (global): ${territory.name} (${territory.id})`);
-            
-            const { data: historyData, error: historyError } = await supabase
-              .from("assigned_territories")
-              .select(`
-                id, 
-                territory_id, 
-                publisher_id, 
-                assigned_at, 
-                expires_at, 
-                returned_at, 
-                status,
-                publishers:publishers!assigned_territories_publisher_id_fkey(name)
-              `)
-              .eq("territory_id", territory.id)
-              .order("assigned_at", { ascending: false });
-              
-            if (historyError) {
-              console.error(`Error obteniendo historial global para territorio ${territory.name}:`, historyError);
-              continue;
-            }
-            
-            allTerritoriesHistory[territory.id] = historyData || [];
-          } catch (error) {
-            console.error(`Error procesando territorio ${territory.name}:`, error);
-            allTerritoriesHistory[territory.id] = [];
-          }
-        }
-        
-        // Find the maximum number of history records for any territory
-        const maxAllHistoryCount = Math.max(
-          1, // At least one row even if no history
-          ...Object.values(allTerritoriesHistory).map(history => history.length)
+      if (selectedPublisher) {
+        filteredAssignments = filteredAssignments.filter(
+          (a) => a.publisher_id === selectedPublisher
         );
-        
-        // Generate rows based on history records
-        for (let i = 0; i < maxAllHistoryCount; i++) {
-          const row: any[] = [];
-          
-          // For each territory, add the history data or empty cells
-          for (const territory of territories) {
-            const history = allTerritoriesHistory[territory.id] || [];
-            const historyRecord = i < history.length ? history[i] : null;
-            
-            if (i === 0) {
-              // For the first row, include the territory name
-              row.push(territory.name);
-            } else {
-              // For subsequent rows, repeat territory name
-              row.push('');
-            }
-            
-            if (historyRecord) {
-              // Add history details: Publicador, Asignado, Devuelto, Estado
-              row.push(
-                historyRecord.publishers?.name || 'Desconocido',
-                formatDate(historyRecord.assigned_at),
-                historyRecord.returned_at ? formatDate(historyRecord.returned_at) : '—',
-                getStatus(historyRecord.status)
-              );
-            } else {
-              // Add empty cells if no history for this row
-              row.push(i === 0 ? 'Sin historial' : '', '', '', '');
-            }
-            
-            // Add empty cell as separator
-            row.push('');
-          }
-          
-          allData.push(row);
-        }
-        
-        // Create and add the complete history worksheet
-        const allHistorySheet = XLSX.utils.aoa_to_sheet(allData);
-        XLSX.utils.book_append_sheet(workbook, allHistorySheet, 'Historial Completo');
-        console.log(`Hoja de historial completo creada con ${allData.length} filas`);
-      } catch (error) {
-        console.error("Error creando hoja de historial completo:", error);
-        
-        // Create fallback empty sheet
-        const fallbackSheet = XLSX.utils.aoa_to_sheet([
-          ['Error al generar historial completo'],
-          [`Error: ${error instanceof Error ? error.message : String(error)}`]
-        ]);
-        XLSX.utils.book_append_sheet(workbook, fallbackSheet, 'Error Historial');
       }
-      
-      // Generate file and download
-      console.log("Generando archivo Excel...");
-      XLSX.writeFile(workbook, `Territorios_Historial_Columnas.xlsx`);
-      
+      if (dateRange?.from && dateRange?.to) {
+        filteredAssignments = filteredAssignments.filter((a) => {
+          const assignedDate = new Date(a.assigned_at);
+          return (
+            assignedDate >= dateRange.from! && assignedDate <= dateRange.to!
+          );
+        });
+      }
+
+      const exportData = formatAssignmentsForExcel(filteredAssignments);
+
+      const workbook = utils.book_new();
+      const worksheet = utils.json_to_sheet(exportData);
+
+      utils.book_append_sheet(workbook, worksheet, "Asignaciones");
+
+      writeFile(
+        workbook,
+        `asignaciones_territorios_${format(new Date(), "yyyy-MM-dd")}.xlsx`
+      );
+
       toast({
         title: "Exportación completada",
-        description: "El archivo con el historial completo de territorios se ha descargado correctamente.",
+        description: "El archivo de asignaciones se ha exportado correctamente.",
       });
     } catch (error) {
-      console.error("Error exportando territorios:", error);
+      console.error("Error exporting territories by assignment:", error);
       toast({
-        title: "Error",
-        description: "Hubo un problema al exportar los datos de territorios. Revisa la consola para más detalles.",
         variant: "destructive",
+        title: "Error en la exportación",
+        description:
+          "No se pudieron exportar los datos. Inténtalo de nuevo.",
       });
+    } finally {
+      setExporting(false);
     }
   };
 
+  const formatAssignmentsForExcel = (assignments: TerritoryAssignment[]) => {
+    return assignments.map((assignment) => ({
+      ID: assignment.id,
+      "Territorio ID": assignment.territory_id,
+      "Publicador ID": assignment.publisher_id,
+      "Fecha de Asignación": format(new Date(assignment.assigned_at), "dd/MM/yyyy", { locale: es }),
+      "Fecha de Vencimiento": assignment.expires_at ? format(new Date(assignment.expires_at), "dd/MM/yyyy", { locale: es }) : "Sin vencimiento",
+      Estado: assignment.status,
+      Token: assignment.token,
+    }));
+  };
+
+  const formatAssignmentHistoryForExcel = (assignments: AssignmentRecord[]) => {
+    return assignments.map((assignment) => ({
+      ID: assignment.id,
+      "Territorio ID": assignment.territory_id,
+      "Nombre del Territorio": assignment.territory_name,
+      "Zona del Territorio": assignment.zone_name,
+      "Publicador ID": assignment.publisher_id,
+      "Nombre del Publicador": assignment.publisher_name,
+      "Fecha de Asignación": format(new Date(assignment.assigned_at), "dd/MM/yyyy", { locale: es }),
+      "Fecha de Vencimiento": assignment.expires_at ? format(new Date(assignment.expires_at), "dd/MM/yyyy", { locale: es }) : "Sin vencimiento",
+      "Fecha de Retorno": assignment.returned_at ? format(new Date(assignment.returned_at), "dd/MM/yyyy", { locale: es }) : "Sin retorno",
+      Estado: assignment.status,
+      Token: assignment.token,
+    }));
+  };
+
+const exportAssignmentHistory = async () => {
+  try {
+    setExporting(true);
+    
+    const { data, error } = await supabase
+      .from("assigned_territories")
+      .select(`
+        id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
+        publishers:publishers!assigned_territories_publisher_id_fkey(name),
+        territories:territories!assigned_territories_territory_id_fkey(name, zone_id),
+        zones:territories!inner(zones(name))
+      `)
+      .order("assigned_at", { ascending: false });
+    
+    if (error) {
+      throw error;
+    }
+    
+    // Transform data type to ensure it matches AssignmentRecord
+    const assignmentRecords: AssignmentRecord[] = data.map(item => ({
+      id: item.id,
+      territory_id: item.territory_id,
+      publisher_id: item.publisher_id,
+      assigned_at: item.assigned_at,
+      expires_at: item.expires_at,
+      status: item.status || "",
+      token: item.token,
+      returned_at: item.returned_at,
+      publisher_name: item.publishers?.name || "Unknown",
+      territory_name: item.territories?.name || "Unknown",
+      zone_name: item.zones?.zones?.name || "Unknown"
+    }));
+    
+    const historyData = formatAssignmentHistoryForExcel(assignmentRecords);
+    
+    const workbook = utils.book_new();
+    const worksheet = utils.json_to_sheet(historyData);
+    
+    utils.book_append_sheet(workbook, worksheet, "Historial de Asignaciones");
+    
+    writeFile(
+      workbook,
+      `historial_territorios_${format(new Date(), "yyyy-MM-dd")}.xlsx`
+    );
+    
+    toast({
+      title: "Exportación completada",
+      description: "El historial de asignaciones se ha exportado correctamente.",
+    });
+  } catch (error) {
+    console.error("Error exporting assignment history:", error);
+    toast({
+      variant: "destructive",
+      title: "Error en la exportación",
+      description:
+        "No se pudo exportar el historial de asignaciones. Inténtalo de nuevo.",
+    });
+  } finally {
+    setExporting(false);
+  }
+};
+
   return (
-    <Button
-      variant="outline"
-      onClick={handleExport}
-      disabled={territories.length === 0}
-      className="w-full sm:w-auto"
-    >
-      <FileSpreadsheet className="mr-2 h-4 w-4" />
-      Exportar Historial Completo
-    </Button>
+    <Card>
+      <CardHeader>
+        <CardTitle>Exportar Datos</CardTitle>
+        <CardDescription>
+          Exporta la información de los territorios asignados en formato Excel.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="territory">Territorio</Label>
+          <Select
+            id="territory"
+            value={selectedTerritory || ""}
+            onValueChange={setSelectedTerritory}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un territorio" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={null}>Todos</SelectItem>
+              {territories.map((territory) => (
+                <SelectItem key={territory.id} value={territory.id}>
+                  {territory.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="publisher">Publicador</Label>
+          <Select
+            id="publisher"
+            value={selectedPublisher || ""}
+            onValueChange={setSelectedPublisher}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecciona un publicador" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={null}>Todos</SelectItem>
+              {publishers.map((publisher) => (
+                <SelectItem key={publisher.id} value={publisher.id}>
+                  {publisher.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Rango de Fechas</Label>
+          <CalendarDateRangePicker date={dateRange} onDateChange={setDateRange} />
+        </div>
+      </CardContent>
+      <CardFooter>
+        <Button onClick={exportTerritoriesByAssignment} disabled={exporting || isLoading}>
+          {exporting ? "Exportando..." : "Exportar Asignaciones"}
+        </Button>
+      </CardFooter>
+      <CardContent className="grid gap-4">
+        <div className="space-y-2">
+          <Label>Exportar Historial Completo</Label>
+          <CardDescription>
+            Exporta el historial completo de asignaciones de territorios.
+          </CardDescription>
+        </div>
+      </CardContent>
+      <CardFooter>
+        <Button onClick={exportAssignmentHistory} disabled={exporting || isLoading}>
+          {exporting ? "Exportando..." : "Exportar Historial"}
+        </Button>
+      </CardFooter>
+      <CardContent>
+        <CardTitle>Resumen de Asignaciones</CardTitle>
+        <CardDescription>
+          Información general sobre las asignaciones de territorios.
+        </CardDescription>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[100px]">Total de Asignaciones</TableHead>
+              <TableHead>Asignaciones Activas</TableHead>
+              <TableHead>Asignaciones Expiradas</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell>{allAssignments.length}</TableCell>
+              <TableCell>{currentAssignmentsCount}</TableCell>
+              <TableCell>{expiredAssignmentsCount}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 };
 

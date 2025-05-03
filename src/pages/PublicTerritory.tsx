@@ -1,12 +1,15 @@
 
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays, format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Calendar, AlertTriangle, Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, AlertTriangle, Info, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import DangerLevelBadge from "@/components/territory/DangerLevelBadge";
+import WarningsTooltip from "@/components/territory/WarningsTooltip";
 
 const PublicTerritory = () => {
   const { token } = useParams();
@@ -15,10 +18,18 @@ const PublicTerritory = () => {
   const [territoryData, setTerritoryData] = useState<{
     territory_name: string;
     google_maps_link: string | null;
+    danger_level: string | null;
+    warnings: string | null;
     expires_at: string | null;
     publisher_name: string;
+    publisher_id: string;
     is_expired: boolean;
   } | null>(null);
+  const [otherTerritories, setOtherTerritories] = useState<{
+    id: string;
+    name: string;
+    token: string;
+  }[]>([]);
 
   useEffect(() => {
     const fetchTerritoryByToken = async () => {
@@ -32,7 +43,7 @@ const PublicTerritory = () => {
         // First, fetch the assignment with the given token
         const { data: assignmentData, error: assignmentError } = await supabase
           .from("assigned_territories")
-          .select("id, territory_id, publisher_id, expires_at, status, token")
+          .select("id, territory_id, publisher_id, expires_at, status, token, returned_at")
           .eq("token", token)
           .single();
 
@@ -47,7 +58,7 @@ const PublicTerritory = () => {
         const [territoryResult, publisherResult] = await Promise.all([
           supabase
             .from("territories")
-            .select("name, google_maps_link")
+            .select("name, google_maps_link, danger_level, warnings")
             .eq("id", assignmentData.territory_id)
             .single(),
           supabase
@@ -74,15 +85,43 @@ const PublicTerritory = () => {
         const isExpired =
           !assignmentData.expires_at ||
           new Date(assignmentData.expires_at) < new Date() ||
-          assignmentData.status !== "assigned";
+          assignmentData.status !== "assigned" ||
+          assignmentData.returned_at !== null;
 
         setTerritoryData({
           territory_name: territoryResult.data.name,
           google_maps_link: territoryResult.data.google_maps_link,
+          danger_level: territoryResult.data.danger_level,
+          warnings: territoryResult.data.warnings,
           expires_at: assignmentData.expires_at,
           publisher_name: publisherResult.data.name,
+          publisher_id: assignmentData.publisher_id,
           is_expired: isExpired,
         });
+
+        // If the territory is expired, check for other active territories for this publisher
+        if (isExpired) {
+          const { data: otherAssignments, error: otherAssignmentsError } = await supabase
+            .from("assigned_territories")
+            .select(`
+              id, token,
+              territories:territory_id(id, name)
+            `)
+            .eq("publisher_id", assignmentData.publisher_id)
+            .eq("status", "assigned")
+            .is("returned_at", null)
+            .gt("expires_at", new Date().toISOString())
+            .neq("token", token);
+          
+          if (!otherAssignmentsError && otherAssignments && otherAssignments.length > 0) {
+            const validTerritories = otherAssignments.map(assignment => ({
+              id: assignment.territories.id,
+              name: assignment.territories.name,
+              token: assignment.token
+            }));
+            setOtherTerritories(validTerritories);
+          }
+        }
 
         setLoading(false);
       } catch (err) {
@@ -155,6 +194,12 @@ const PublicTerritory = () => {
             <span>Asignado a: <span className="font-medium">{territoryData.publisher_name}</span></span>
           </div>
         </div>
+        
+        {territoryData.danger_level && (
+          <div className="mb-3">
+            <DangerLevelBadge level={territoryData.danger_level} />
+          </div>
+        )}
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
           {territoryData.expires_at && (
@@ -164,6 +209,16 @@ const PublicTerritory = () => {
             </>
           )}
         </div>
+
+        {territoryData.warnings && (
+          <div className="mb-4">
+            <WarningsTooltip 
+              warnings={territoryData.warnings} 
+              showAsTooltip={false} 
+              variant="alert" 
+            />
+          </div>
+        )}
 
         {daysRemaining !== null && !territoryData.is_expired && (
           <Alert className={`${daysRemaining < 7 ? "border-amber-500 bg-amber-50 text-amber-800" : "border-green-500 bg-green-50 text-green-800"} mb-4`}>
@@ -182,6 +237,32 @@ const PublicTerritory = () => {
             <AlertTitle>Territorio caducado</AlertTitle>
             <AlertDescription>
               Este territorio ha expirado. Por favor, solicite otro territorio.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {territoryData.is_expired && otherTerritories.length > 0 && (
+          <Alert className="border-blue-200 bg-blue-50 text-blue-800 mb-4">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Actualmente dispones de otro territorio asignado</AlertTitle>
+            <AlertDescription className="mt-2">
+              <div className="space-y-2">
+                {otherTerritories.map(territory => (
+                  <div key={territory.id} className="flex justify-between items-center">
+                    <span>{territory.name}</span>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="border-blue-300 hover:bg-blue-100"
+                      asChild
+                    >
+                      <Link to={`/territorio/${territory.token}`}>
+                        Acceder <ArrowRight className="ml-1 h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </AlertDescription>
           </Alert>
         )}
