@@ -1,10 +1,25 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, MapPin, Trash2, Copy, Unlink, Calendar, ArrowUp, ArrowDown } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Plus, 
+  MapPin, 
+  Trash2, 
+  Copy, 
+  Unlink, 
+  Calendar, 
+  ArrowUp, 
+  ArrowDown,
+  CircleCheck,
+  CircleAlert,
+  X,
+  AlertTriangle,
+  Info
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -15,6 +30,13 @@ import { Zone, Territory, TerritoryAssignment } from "../types/territory-types";
 import EditTerritoryDialog from "../components/territories/EditTerritoryDialog";
 import AssignTerritoryDialog from "../components/territories/AssignTerritoryDialog";
 import TerritoryConfigDialog from "../components/territories/TerritoryConfigDialog";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger 
+} from "@/components/ui/tooltip";
 
 type SortField = 'name' | 'zone' | 'status' | 'last_assigned_at' | 'last_returned_at' | 'inactive_time';
 
@@ -23,7 +45,13 @@ const Territories = () => {
   const [zones, setZones] = useState<Zone[]>([]);
   const [assignments, setAssignments] = useState<TerritoryAssignment[]>([]);
   const [selectedZone, setSelectedZone] = useState<string>("all");
-  const [newTerritory, setNewTerritory] = useState({ name: "", zone_id: "", google_maps_link: "" });
+  const [newTerritory, setNewTerritory] = useState({ 
+    name: "", 
+    zone_id: "", 
+    google_maps_link: "",
+    danger_level: "",
+    warnings: ""
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -43,7 +71,7 @@ const Territories = () => {
       const { data, error } = await supabase
         .from("territories")
         .select(`
-          id, name, zone_id, google_maps_link, created_at, updated_at,
+          id, name, zone_id, google_maps_link, danger_level, warnings, created_at, updated_at,
           zones(id, name)
         `)
         .order("name");
@@ -59,6 +87,8 @@ const Territories = () => {
         name: item.name,
         zone_id: item.zone_id,
         google_maps_link: item.google_maps_link,
+        danger_level: item.danger_level,
+        warnings: item.warnings,
         created_at: item.created_at,
         updated_at: item.updated_at,
         zone: item.zones ? { id: item.zones.id, name: item.zones.name } : undefined,
@@ -248,7 +278,13 @@ const Territories = () => {
       console.error(error);
     } else {
       toast.success("Territorio creado");
-      setNewTerritory({ name: "", zone_id: "", google_maps_link: "" });
+      setNewTerritory({ 
+        name: "", 
+        zone_id: "", 
+        google_maps_link: "",
+        danger_level: "",
+        warnings: ""
+      });
       fetchTerritories();
     }
     setIsLoading(false);
@@ -316,6 +352,19 @@ const Territories = () => {
     // Si hay registro de devolución, lo usamos para el cálculo
     const daysUnassigned = differenceInDays(new Date(), new Date(territory.last_returned_at));
     return daysUnassigned > 90; 
+  };
+
+  const getDangerLevelIcon = (dangerLevel: string | null | undefined) => {
+    switch (dangerLevel) {
+      case "verde":
+        return <CircleCheck className="h-4 w-4 text-green-500" />;
+      case "amarillo":
+        return <CircleAlert className="h-4 w-4 text-amber-500" />;
+      case "rojo":
+        return <X className="h-4 w-4 text-red-500" />;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -423,7 +472,30 @@ const Territories = () => {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <MapPin size={16} className="text-muted-foreground" />
-                              <span>{territory.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{territory.name}</span>
+                                
+                                {territory.danger_level && (
+                                  <span className="flex items-center">
+                                    {getDangerLevelIcon(territory.danger_level)}
+                                  </span>
+                                )}
+                                
+                                {territory.warnings && (
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div>
+                                          <AlertTriangle className="h-4 w-4 text-amber-500 cursor-help" />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent className="max-w-xs">
+                                        <p>{territory.warnings}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                           <TableCell>{territory.zone?.name || "Sin zona"}</TableCell>
@@ -573,6 +645,46 @@ const Territories = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Nivel de Peligrosidad (opcional)</Label>
+              <RadioGroup 
+                className="flex flex-wrap gap-4"
+                value={newTerritory.danger_level} 
+                onValueChange={(value) => setNewTerritory({ ...newTerritory, danger_level: value })}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="verde" id="new-verde" />
+                  <Label htmlFor="new-verde" className="flex items-center gap-1 cursor-pointer">
+                    <CircleCheck className="h-4 w-4 text-green-500" /> Verde
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="amarillo" id="new-amarillo" />
+                  <Label htmlFor="new-amarillo" className="flex items-center gap-1 cursor-pointer">
+                    <CircleAlert className="h-4 w-4 text-amber-500" /> Amarillo
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="rojo" id="new-rojo" />
+                  <Label htmlFor="new-rojo" className="flex items-center gap-1 cursor-pointer">
+                    <X className="h-4 w-4 text-red-500" /> Rojo
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="territory-warnings">Advertencias (opcional)</Label>
+              <Textarea
+                id="territory-warnings"
+                value={newTerritory.warnings}
+                onChange={(e) => setNewTerritory({ ...newTerritory, warnings: e.target.value })}
+                placeholder="Ej: Muchas escaleras, pendientes pronunciadas..."
+                disabled={isLoading}
+                className="w-full min-h-[80px]"
+              />
             </div>
             
             <div className="space-y-2">

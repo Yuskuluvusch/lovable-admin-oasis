@@ -10,6 +10,8 @@ export interface Territory {
   zone_id: string;
   zone?: Zone;
   google_maps_link?: string;
+  danger_level?: string | null;
+  warnings?: string | null;
   created_at: string;
   updated_at: string;
   last_assigned_at: string | null;
@@ -46,6 +48,8 @@ export interface TerritorySafeData {
   name: string;
   zone?: Zone;
   google_maps_link?: string;
+  danger_level?: string | null;
+  warnings?: string | null;
   last_assigned_at?: string | null;
   last_returned_at?: string | null;
   created_at?: string;

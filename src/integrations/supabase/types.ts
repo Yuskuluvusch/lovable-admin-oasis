@@ -187,26 +187,32 @@ export type Database = {
       territories: {
         Row: {
           created_at: string
+          danger_level: string | null
           google_maps_link: string | null
           id: string
           name: string
           updated_at: string
+          warnings: string | null
           zone_id: string | null
         }
         Insert: {
           created_at?: string
+          danger_level?: string | null
           google_maps_link?: string | null
           id?: string
           name: string
           updated_at?: string
+          warnings?: string | null
           zone_id?: string | null
         }
         Update: {
           created_at?: string
+          danger_level?: string | null
           google_maps_link?: string | null
           id?: string
           name?: string
           updated_at?: string
+          warnings?: string | null
           zone_id?: string | null
         }
         Relationships: [
