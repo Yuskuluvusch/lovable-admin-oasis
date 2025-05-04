@@ -106,8 +106,8 @@ const PublicTerritory = () => {
           const { data: otherAssignments, error: otherAssignmentsError } = await supabase
             .from("assigned_territories")
             .select(`
-              id, token,
-              territories:territory_id(id, name)
+              id, token, territory_id,
+              territories(id, name)
             `)
             .eq("publisher_id", assignmentData.publisher_id)
             .eq("status", "assigned")
@@ -116,14 +116,17 @@ const PublicTerritory = () => {
             .neq("token", token);
           
           if (!otherAssignmentsError && otherAssignments && otherAssignments.length > 0) {
-            const validTerritories = otherAssignments.map(assignment => {
-              const territoryData = assignment.territories as { id: string; name: string };
-              return {
-                id: territoryData ? territoryData.id : '',
-                name: territoryData ? territoryData.name : '',
-                token: assignment.token
-              };
-            });
+            const validTerritories = otherAssignments
+              .filter(assignment => assignment.territories && typeof assignment.territories !== 'string')
+              .map(assignment => {
+                const territoryData = assignment.territories as { id: string; name: string };
+                return {
+                  id: territoryData.id,
+                  name: territoryData.name,
+                  token: assignment.token
+                };
+              });
+            
             setOtherTerritories(validTerritories);
           }
         }

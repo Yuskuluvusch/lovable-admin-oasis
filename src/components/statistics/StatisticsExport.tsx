@@ -36,12 +36,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "lucide-react";
-import { CalendarDateRangePicker } from "@/components/ui/calendar-date-range-picker";
-import { cn } from "@/lib/utils";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { DateRange } from "react-day-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { utils, writeFile } from "xlsx";
@@ -56,6 +54,53 @@ interface Publisher {
   id: string;
   name: string;
 }
+
+// Date range picker component
+const CalendarDateRangePicker = ({ 
+  date, 
+  onDateChange 
+}: { 
+  date: DateRange | undefined; 
+  onDateChange: (date: DateRange | undefined) => void 
+}) => {
+  return (
+    <div className="flex flex-col space-y-2">
+      <div className="grid gap-2">
+        <div className="flex items-center gap-2">
+          <Button
+            id="date"
+            variant="outline"
+            size="sm"
+            className={date?.from ? "text-left font-normal" : "text-left font-normal text-muted-foreground"}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {date?.from ? (
+              date.to ? (
+                <>
+                  {format(date.from, "LLL dd, y", { locale: es })} -{" "}
+                  {format(date.to, "LLL dd, y", { locale: es })}
+                </>
+              ) : (
+                format(date.from, "LLL dd, y", { locale: es })
+              )
+            ) : (
+              <span>Seleccionar rango de fechas</span>
+            )}
+          </Button>
+          {date?.from && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDateChange(undefined)}
+            >
+              Limpiar
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const StatisticsExport = () => {
   const [territories, setTerritories] = useState<Territory[]>([]);
@@ -107,7 +152,7 @@ const StatisticsExport = () => {
         .from("assigned_territories")
         .select(`
           id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
-          publishers:publishers!assigned_territories_publisher_id_fkey(name)
+          publishers:publishers(name)
         `)
         .order("assigned_at", { ascending: false });
       
@@ -189,16 +234,13 @@ const StatisticsExport = () => {
         `asignaciones_territorios_${format(new Date(), "yyyy-MM-dd")}.xlsx`
       );
 
-      toast.success({
-        title: "Exportación completada",
+      toast.success("Exportación completada", {
         description: "El archivo de asignaciones se ha exportado correctamente."
       });
     } catch (error) {
       console.error("Error exporting territories by assignment:", error);
-      toast.error({
-        title: "Error en la exportación",
-        description:
-          "No se pudieron exportar los datos. Inténtalo de nuevo."
+      toast.error("Error en la exportación", {
+        description: "No se pudieron exportar los datos. Inténtalo de nuevo."
       });
     } finally {
       setExporting(false);
@@ -241,9 +283,9 @@ const StatisticsExport = () => {
         .from("assigned_territories")
         .select(`
           id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
-          publishers:publishers!assigned_territories_publisher_id_fkey(name),
-          territories:territories!assigned_territories_territory_id_fkey(name, zone_id),
-          zones:territories!inner(zones(name))
+          publishers:publishers(name),
+          territories:territories(name, zone_id),
+          zones:territories(zones(name))
         `)
         .order("assigned_at", { ascending: false });
       
@@ -279,17 +321,14 @@ const StatisticsExport = () => {
           `historial_territorios_${format(new Date(), "yyyy-MM-dd")}.xlsx`
         );
         
-        toast.success({
-          title: "Exportación completada",
+        toast.success("Exportación completada", {
           description: "El historial de asignaciones se ha exportado correctamente."
         });
       }
     } catch (error) {
       console.error("Error exporting assignment history:", error);
-      toast.error({
-        title: "Error en la exportación",
-        description:
-          "No se pudo exportar el historial de asignaciones. Inténtalo de nuevo."
+      toast.error("Error en la exportación", {
+        description: "No se pudo exportar el historial de asignaciones. Inténtalo de nuevo."
       });
     } finally {
       setExporting(false);
