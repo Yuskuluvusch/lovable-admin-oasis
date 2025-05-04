@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +10,12 @@ import { Calendar, AlertTriangle, Info, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import DangerLevelBadge from "@/components/territory/DangerLevelBadge";
 import WarningsTooltip from "@/components/territory/WarningsTooltip";
+
+interface OtherTerritory {
+  id: string;
+  name: string;
+  token: string;
+}
 
 const PublicTerritory = () => {
   const { token } = useParams();
@@ -24,11 +31,7 @@ const PublicTerritory = () => {
     publisher_id: string;
     is_expired: boolean;
   } | null>(null);
-  const [otherTerritories, setOtherTerritories] = useState<{
-    id: string;
-    name: string;
-    token: string;
-  }[]>([]);
+  const [otherTerritories, setOtherTerritories] = useState<OtherTerritory[]>([]);
 
   useEffect(() => {
     const fetchTerritoryByToken = async () => {
@@ -114,10 +117,10 @@ const PublicTerritory = () => {
           
           if (!otherAssignmentsError && otherAssignments && otherAssignments.length > 0) {
             const validTerritories = otherAssignments.map(assignment => {
-              // Ensure territories is properly accessed as an object
+              const territoryData = assignment.territories as { id: string; name: string };
               return {
-                id: assignment.territories ? assignment.territories.id : '',
-                name: assignment.territories ? assignment.territories.name : '',
+                id: territoryData ? territoryData.id : '',
+                name: territoryData ? territoryData.name : '',
                 token: assignment.token
               };
             });

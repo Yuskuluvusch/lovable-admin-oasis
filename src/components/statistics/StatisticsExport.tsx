@@ -99,58 +99,58 @@ const StatisticsExport = () => {
     }
   };
 
-const fetchAssignmentsForExport = async () => {
-  setIsLoading(true);
-  
-  try {
-    const { data, error } = await supabase
-      .from("assigned_territories")
-      .select(`
-        id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
-        publishers:publishers!assigned_territories_publisher_id_fkey(name)
-      `)
-      .order("assigned_at", { ascending: false });
+  const fetchAssignmentsForExport = async () => {
+    setIsLoading(true);
     
-    if (error) {
-      throw error;
+    try {
+      const { data, error } = await supabase
+        .from("assigned_territories")
+        .select(`
+          id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
+          publishers:publishers!assigned_territories_publisher_id_fkey(name)
+        `)
+        .order("assigned_at", { ascending: false });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        // Transform data type to ensure it matches AssignmentRecord
+        const assignmentRecords: AssignmentRecord[] = data.map(item => ({
+          id: item.id,
+          territory_id: item.territory_id,
+          publisher_id: item.publisher_id,
+          assigned_at: item.assigned_at,
+          expires_at: item.expires_at,
+          status: item.status || "",
+          token: item.token,
+          returned_at: item.returned_at,
+          publisher_name: item.publishers?.name || "Unknown"
+        }));
+        
+        setAllAssignments(assignmentRecords);
+        
+        const currentAssignments = assignmentRecords.filter(
+          (a) => a.status === "assigned" && !a.returned_at
+        );
+        const expiredAssignments = assignmentRecords.filter(
+          (a) =>
+            a.status === "assigned" &&
+            !a.returned_at &&
+            a.expires_at &&
+            new Date(a.expires_at) < new Date()
+        );
+        
+        setCurrentAssignmentsCount(currentAssignments.length);
+        setExpiredAssignmentsCount(expiredAssignments.length);
+      }
+    } catch (error) {
+      console.error("Error fetching assignments for export:", error);
+    } finally {
+      setIsLoading(false);
     }
-    
-    if (data) {
-      // Transform data type to ensure it matches AssignmentRecord
-      const assignmentRecords: AssignmentRecord[] = data.map(item => ({
-        id: item.id,
-        territory_id: item.territory_id,
-        publisher_id: item.publisher_id,
-        assigned_at: item.assigned_at,
-        expires_at: item.expires_at,
-        status: item.status || "",
-        token: item.token,
-        returned_at: item.returned_at,
-        publisher_name: item.publishers?.name || "Unknown"
-      }));
-      
-      setAllAssignments(assignmentRecords);
-      
-      const currentAssignments = assignmentRecords.filter(
-        (a) => a.status === "assigned" && !a.returned_at
-      );
-      const expiredAssignments = assignmentRecords.filter(
-        (a) =>
-          a.status === "assigned" &&
-          !a.returned_at &&
-          a.expires_at &&
-          new Date(a.expires_at) < new Date()
-      );
-      
-      setCurrentAssignmentsCount(currentAssignments.length);
-      setExpiredAssignmentsCount(expiredAssignments.length);
-    }
-  } catch (error) {
-    console.error("Error fetching assignments for export:", error);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
   const exportTerritoriesByAssignment = async () => {
     try {
@@ -189,14 +189,13 @@ const fetchAssignmentsForExport = async () => {
         `asignaciones_territorios_${format(new Date(), "yyyy-MM-dd")}.xlsx`
       );
 
-      toast({
+      toast.success({
         title: "Exportación completada",
         description: "El archivo de asignaciones se ha exportado correctamente."
       });
     } catch (error) {
       console.error("Error exporting territories by assignment:", error);
-      toast({
-        variant: "destructive",
+      toast.error({
         title: "Error en la exportación",
         description:
           "No se pudieron exportar los datos. Inténtalo de nuevo."
@@ -234,69 +233,68 @@ const fetchAssignmentsForExport = async () => {
     }));
   };
 
-const exportAssignmentHistory = async () => {
-  try {
-    setExporting(true);
-    
-    const { data, error } = await supabase
-      .from("assigned_territories")
-      .select(`
-        id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
-        publishers:publishers!assigned_territories_publisher_id_fkey(name),
-        territories:territories!assigned_territories_territory_id_fkey(name, zone_id),
-        zones:territories!inner(zones(name))
-      `)
-      .order("assigned_at", { ascending: false });
-    
-    if (error) {
-      throw error;
-    }
-    
-    if (data) {
-      // Transform data type to ensure it matches AssignmentRecord
-      const assignmentRecords: AssignmentRecord[] = data.map(item => ({
-        id: item.id,
-        territory_id: item.territory_id,
-        publisher_id: item.publisher_id,
-        assigned_at: item.assigned_at,
-        expires_at: item.expires_at,
-        status: item.status || "",
-        token: item.token,
-        returned_at: item.returned_at,
-        publisher_name: item.publishers?.name || "Unknown",
-        territory_name: item.territories?.name || "Unknown",
-        zone_name: item.zones?.zones?.name || "Unknown"
-      }));
+  const exportAssignmentHistory = async () => {
+    try {
+      setExporting(true);
       
-      const historyData = formatAssignmentHistoryForExcel(assignmentRecords);
+      const { data, error } = await supabase
+        .from("assigned_territories")
+        .select(`
+          id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
+          publishers:publishers!assigned_territories_publisher_id_fkey(name),
+          territories:territories!assigned_territories_territory_id_fkey(name, zone_id),
+          zones:territories!inner(zones(name))
+        `)
+        .order("assigned_at", { ascending: false });
       
-      const workbook = utils.book_new();
-      const worksheet = utils.json_to_sheet(historyData);
+      if (error) {
+        throw error;
+      }
       
-      utils.book_append_sheet(workbook, worksheet, "Historial de Asignaciones");
-      
-      writeFile(
-        workbook,
-        `historial_territorios_${format(new Date(), "yyyy-MM-dd")}.xlsx`
-      );
-      
-      toast({
-        title: "Exportación completada",
-        description: "El historial de asignaciones se ha exportado correctamente."
+      if (data) {
+        // Transform data type to ensure it matches AssignmentRecord
+        const assignmentRecords: AssignmentRecord[] = data.map(item => ({
+          id: item.id,
+          territory_id: item.territory_id,
+          publisher_id: item.publisher_id,
+          assigned_at: item.assigned_at,
+          expires_at: item.expires_at,
+          status: item.status || "",
+          token: item.token,
+          returned_at: item.returned_at,
+          publisher_name: item.publishers?.name || "Unknown",
+          territory_name: item.territories?.name || "Unknown",
+          zone_name: item.zones?.zones?.name || "Unknown"
+        }));
+        
+        const historyData = formatAssignmentHistoryForExcel(assignmentRecords);
+        
+        const workbook = utils.book_new();
+        const worksheet = utils.json_to_sheet(historyData);
+        
+        utils.book_append_sheet(workbook, worksheet, "Historial de Asignaciones");
+        
+        writeFile(
+          workbook,
+          `historial_territorios_${format(new Date(), "yyyy-MM-dd")}.xlsx`
+        );
+        
+        toast.success({
+          title: "Exportación completada",
+          description: "El historial de asignaciones se ha exportado correctamente."
+        });
+      }
+    } catch (error) {
+      console.error("Error exporting assignment history:", error);
+      toast.error({
+        title: "Error en la exportación",
+        description:
+          "No se pudo exportar el historial de asignaciones. Inténtalo de nuevo."
       });
+    } finally {
+      setExporting(false);
     }
-  } catch (error) {
-    console.error("Error exporting assignment history:", error);
-    toast({
-      variant: "destructive",
-      title: "Error en la exportación",
-      description:
-        "No se pudo exportar el historial de asignaciones. Inténtalo de nuevo."
-    });
-  } finally {
-    setExporting(false);
-  }
-};
+  };
 
   return (
     <Card>
