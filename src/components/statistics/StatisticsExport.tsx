@@ -18,15 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -129,6 +120,7 @@ const StatisticsExport = () => {
       setTerritories(data || []);
     } catch (error) {
       console.error("Error fetching territories:", error);
+      toast.error("Error al cargar territorios");
     }
   };
 
@@ -141,6 +133,7 @@ const StatisticsExport = () => {
       setPublishers(data || []);
     } catch (error) {
       console.error("Error fetching publishers:", error);
+      toast.error("Error al cargar publicadores");
     }
   };
 
@@ -151,16 +144,33 @@ const StatisticsExport = () => {
       const { data: assignmentsData, error: assignmentsError } = await supabase
         .from("assigned_territories")
         .select(`
-          id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
-          publishers (name)
-        `)
-        .order("assigned_at", { ascending: false });
+          id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at
+        `);
       
       if (assignmentsError) {
         throw assignmentsError;
       }
       
       if (assignmentsData) {
+        // Fetch publisher names separately
+        const publisherIds = [...new Set(assignmentsData.map(a => a.publisher_id))];
+        const { data: publishersData, error: publishersError } = await supabase
+          .from("publishers")
+          .select("id, name")
+          .in("id", publisherIds);
+        
+        if (publishersError) {
+          console.error("Error fetching publishers:", publishersError);
+        }
+        
+        // Create a map of publisher ID to name
+        const publisherMap = new Map();
+        if (publishersData) {
+          publishersData.forEach(publisher => {
+            publisherMap.set(publisher.id, publisher.name);
+          });
+        }
+        
         // Transform data type to ensure it matches AssignmentRecord
         const assignmentRecords: AssignmentRecord[] = assignmentsData.map(item => ({
           id: item.id,
@@ -171,7 +181,7 @@ const StatisticsExport = () => {
           status: item.status || "",
           token: item.token,
           returned_at: item.returned_at,
-          publisher_name: item.publishers?.name || "Unknown"
+          publisher_name: publisherMap.get(item.publisher_id) || "Unknown"
         }));
         
         setAllAssignments(assignmentRecords);
@@ -192,6 +202,7 @@ const StatisticsExport = () => {
       }
     } catch (error) {
       console.error("Error fetching assignments for export:", error);
+      toast.error("Error al cargar asignaciones");
     } finally {
       setIsLoading(false);
     }
@@ -252,6 +263,7 @@ const StatisticsExport = () => {
       ID: assignment.id,
       "Territorio ID": assignment.territory_id,
       "Publicador ID": assignment.publisher_id,
+      "Nombre Publicador": assignment.publisher_name || "Desconocido",
       "Fecha de Asignación": format(new Date(assignment.assigned_at), "dd/MM/yyyy", { locale: es }),
       "Fecha de Vencimiento": assignment.expires_at ? format(new Date(assignment.expires_at), "dd/MM/yyyy", { locale: es }) : "Sin vencimiento",
       Estado: assignment.status,
@@ -263,10 +275,10 @@ const StatisticsExport = () => {
     return assignments.map((assignment) => ({
       ID: assignment.id,
       "Territorio ID": assignment.territory_id,
-      "Nombre del Territorio": assignment.territory_name,
-      "Zona del Territorio": assignment.zone_name,
+      "Nombre del Territorio": assignment.territory_name || "Desconocido",
+      "Zona del Territorio": assignment.zone_name || "Sin zona",
       "Publicador ID": assignment.publisher_id,
-      "Nombre del Publicador": assignment.publisher_name,
+      "Nombre del Publicador": assignment.publisher_name || "Desconocido",
       "Fecha de Asignación": format(new Date(assignment.assigned_at), "dd/MM/yyyy", { locale: es }),
       "Fecha de Vencimiento": assignment.expires_at ? format(new Date(assignment.expires_at), "dd/MM/yyyy", { locale: es }) : "Sin vencimiento",
       "Fecha de Retorno": assignment.returned_at ? format(new Date(assignment.returned_at), "dd/MM/yyyy", { locale: es }) : "Sin retorno",
@@ -279,13 +291,11 @@ const StatisticsExport = () => {
     try {
       setExporting(true);
       
+      // Get assignment data
       const { data: assignmentsHistoryData, error: assignmentsHistoryError } = await supabase
         .from("assigned_territories")
         .select(`
-          id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
-          publishers (name),
-          territories (name, zone_id),
-          zones:territories (zones(name))
+          id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at
         `)
         .order("assigned_at", { ascending: false });
       
@@ -294,20 +304,84 @@ const StatisticsExport = () => {
       }
       
       if (assignmentsHistoryData) {
+        // Get all publisher data
+        const publisherIds = [...new Set(assignmentsHistoryData.map(item => item.publisher_id))];
+        const { data: publishersData, error: publishersError } = await supabase
+          .from("publishers")
+          .select("id, name")
+          .in("id", publisherIds);
+        
+        if (publishersError) {
+          console.error("Error fetching publishers:", publishersError);
+        }
+        
+        // Get all territory data
+        const territoryIds = [...new Set(assignmentsHistoryData.map(item => item.territory_id))];
+        const { data: territoriesData, error: territoriesError } = await supabase
+          .from("territories")
+          .select(`
+            id, name, zone_id
+          `)
+          .in("id", territoryIds);
+        
+        if (territoriesError) {
+          console.error("Error fetching territories:", territoriesError);
+        }
+        
+        // Get zone data
+        const zoneIds = territoriesData ? [...new Set(territoriesData.filter(t => t.zone_id).map(t => t.zone_id))] : [];
+        const { data: zonesData, error: zonesError } = zoneIds.length > 0 
+          ? await supabase.from("zones").select("id, name").in("id", zoneIds)
+          : { data: [], error: null };
+        
+        if (zonesError) {
+          console.error("Error fetching zones:", zonesError);
+        }
+        
+        // Create maps for quick lookups
+        const publisherMap = new Map();
+        if (publishersData) {
+          publishersData.forEach(publisher => {
+            publisherMap.set(publisher.id, publisher.name);
+          });
+        }
+        
+        const territoryMap = new Map();
+        const zoneIdByTerritoryId = new Map();
+        if (territoriesData) {
+          territoriesData.forEach(territory => {
+            territoryMap.set(territory.id, territory.name);
+            if (territory.zone_id) {
+              zoneIdByTerritoryId.set(territory.id, territory.zone_id);
+            }
+          });
+        }
+        
+        const zoneMap = new Map();
+        if (zonesData) {
+          zonesData.forEach(zone => {
+            zoneMap.set(zone.id, zone.name);
+          });
+        }
+        
         // Transform data type to ensure it matches AssignmentRecord
-        const assignmentRecords: AssignmentRecord[] = assignmentsHistoryData.map(item => ({
-          id: item.id,
-          territory_id: item.territory_id,
-          publisher_id: item.publisher_id,
-          assigned_at: item.assigned_at,
-          expires_at: item.expires_at,
-          status: item.status || "",
-          token: item.token,
-          returned_at: item.returned_at,
-          publisher_name: item.publishers?.name || "Unknown",
-          territory_name: item.territories?.name || "Unknown",
-          zone_name: item.zones?.zones?.name || "Unknown"
-        }));
+        const assignmentRecords: AssignmentRecord[] = assignmentsHistoryData.map(item => {
+          const territoryZoneId = zoneIdByTerritoryId.get(item.territory_id);
+          
+          return {
+            id: item.id,
+            territory_id: item.territory_id,
+            publisher_id: item.publisher_id,
+            assigned_at: item.assigned_at,
+            expires_at: item.expires_at,
+            status: item.status || "",
+            token: item.token,
+            returned_at: item.returned_at,
+            publisher_name: publisherMap.get(item.publisher_id) || "Desconocido",
+            territory_name: territoryMap.get(item.territory_id) || "Desconocido",
+            zone_name: territoryZoneId ? zoneMap.get(territoryZoneId) || "Sin zona" : "Sin zona"
+          };
+        });
         
         const historyData = formatAssignmentHistoryForExcel(assignmentRecords);
         

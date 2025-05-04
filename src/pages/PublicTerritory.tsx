@@ -111,8 +111,7 @@ const PublicTerritory = () => {
           const { data: otherAssignmentsData, error: otherAssignmentsError } = await supabase
             .from("assigned_territories")
             .select(`
-              id, token, territory_id,
-              territories:territories (id, name)
+              id, token, territory_id
             `)
             .eq("publisher_id", assignmentData.publisher_id)
             .eq("status", "assigned")
@@ -121,20 +120,26 @@ const PublicTerritory = () => {
             .neq("token", token);
           
           if (!otherAssignmentsError && otherAssignmentsData && otherAssignmentsData.length > 0) {
-            const validTerritories: OtherTerritory[] = [];
+            const territoryIds = otherAssignmentsData.map(assignment => assignment.territory_id);
             
-            for (const assignment of otherAssignmentsData) {
-              if (assignment.territories && typeof assignment.territories === 'object') {
-                const territoryData = assignment.territories as unknown as TerritoryData;
-                validTerritories.push({
-                  id: territoryData.id,
-                  name: territoryData.name,
+            // Fetch territory details for these assignments
+            const { data: territoriesData, error: territoriesError } = await supabase
+              .from("territories")
+              .select("id, name")
+              .in("id", territoryIds);
+            
+            if (!territoriesError && territoriesData) {
+              const validTerritories: OtherTerritory[] = otherAssignmentsData.map(assignment => {
+                const territoryData = territoriesData.find(t => t.id === assignment.territory_id);
+                return {
+                  id: assignment.territory_id,
+                  name: territoryData ? territoryData.name : "Territorio desconocido",
                   token: assignment.token
-                });
-              }
+                };
+              });
+              
+              setOtherTerritories(validTerritories);
             }
-            
-            setOtherTerritories(validTerritories);
           }
         }
 
