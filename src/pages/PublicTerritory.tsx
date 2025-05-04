@@ -17,6 +17,11 @@ interface OtherTerritory {
   token: string;
 }
 
+interface TerritoryData {
+  id: string;
+  name: string;
+}
+
 const PublicTerritory = () => {
   const { token } = useParams();
   const [loading, setLoading] = useState(true);
@@ -103,11 +108,11 @@ const PublicTerritory = () => {
 
         // If the territory is expired, check for other active territories for this publisher
         if (isExpired) {
-          const { data: otherAssignments, error: otherAssignmentsError } = await supabase
+          const { data: otherAssignmentsData, error: otherAssignmentsError } = await supabase
             .from("assigned_territories")
             .select(`
               id, token, territory_id,
-              territories(id, name)
+              territories:territories (id, name)
             `)
             .eq("publisher_id", assignmentData.publisher_id)
             .eq("status", "assigned")
@@ -115,14 +120,15 @@ const PublicTerritory = () => {
             .gt("expires_at", new Date().toISOString())
             .neq("token", token);
           
-          if (!otherAssignmentsError && otherAssignments && otherAssignments.length > 0) {
+          if (!otherAssignmentsError && otherAssignmentsData && otherAssignmentsData.length > 0) {
             const validTerritories: OtherTerritory[] = [];
             
-            for (const assignment of otherAssignments) {
-              if (assignment.territories && typeof assignment.territories !== 'string') {
+            for (const assignment of otherAssignmentsData) {
+              if (assignment.territories && typeof assignment.territories === 'object') {
+                const territoryData = assignment.territories as unknown as TerritoryData;
                 validTerritories.push({
-                  id: assignment.territories.id,
-                  name: assignment.territories.name,
+                  id: territoryData.id,
+                  name: territoryData.name,
                   token: assignment.token
                 });
               }

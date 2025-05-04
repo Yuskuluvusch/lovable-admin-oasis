@@ -105,8 +105,8 @@ const CalendarDateRangePicker = ({
 const StatisticsExport = () => {
   const [territories, setTerritories] = useState<Territory[]>([]);
   const [publishers, setPublishers] = useState<Publisher[]>([]);
-  const [selectedTerritory, setSelectedTerritory] = useState<string | null>(null);
-  const [selectedPublisher, setSelectedPublisher] = useState<string | null>(null);
+  const [selectedTerritory, setSelectedTerritory] = useState<string | "all">("all");
+  const [selectedPublisher, setSelectedPublisher] = useState<string | "all">("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [allAssignments, setAllAssignments] = useState<AssignmentRecord[]>([]);
   const [currentAssignmentsCount, setCurrentAssignmentsCount] = useState<number>(0);
@@ -148,21 +148,21 @@ const StatisticsExport = () => {
     setIsLoading(true);
     
     try {
-      const { data, error } = await supabase
+      const { data: assignmentsData, error: assignmentsError } = await supabase
         .from("assigned_territories")
         .select(`
           id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
-          publishers(name)
+          publishers (name)
         `)
         .order("assigned_at", { ascending: false });
       
-      if (error) {
-        throw error;
+      if (assignmentsError) {
+        throw assignmentsError;
       }
       
-      if (data) {
+      if (assignmentsData) {
         // Transform data type to ensure it matches AssignmentRecord
-        const assignmentRecords: AssignmentRecord[] = data.map(item => ({
+        const assignmentRecords: AssignmentRecord[] = assignmentsData.map(item => ({
           id: item.id,
           territory_id: item.territory_id,
           publisher_id: item.publisher_id,
@@ -203,12 +203,12 @@ const StatisticsExport = () => {
 
       // Apply filters
       let filteredAssignments = [...allAssignments];
-      if (selectedTerritory) {
+      if (selectedTerritory !== "all") {
         filteredAssignments = filteredAssignments.filter(
           (a) => a.territory_id === selectedTerritory
         );
       }
-      if (selectedPublisher) {
+      if (selectedPublisher !== "all") {
         filteredAssignments = filteredAssignments.filter(
           (a) => a.publisher_id === selectedPublisher
         );
@@ -279,23 +279,23 @@ const StatisticsExport = () => {
     try {
       setExporting(true);
       
-      const { data, error } = await supabase
+      const { data: assignmentsHistoryData, error: assignmentsHistoryError } = await supabase
         .from("assigned_territories")
         .select(`
           id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
-          publishers(name),
-          territories(name, zone_id),
-          zones:territories(zones(name))
+          publishers (name),
+          territories (name, zone_id),
+          zones:territories (zones(name))
         `)
         .order("assigned_at", { ascending: false });
       
-      if (error) {
-        throw error;
+      if (assignmentsHistoryError) {
+        throw assignmentsHistoryError;
       }
       
-      if (data) {
+      if (assignmentsHistoryData) {
         // Transform data type to ensure it matches AssignmentRecord
-        const assignmentRecords: AssignmentRecord[] = data.map(item => ({
+        const assignmentRecords: AssignmentRecord[] = assignmentsHistoryData.map(item => ({
           id: item.id,
           territory_id: item.territory_id,
           publisher_id: item.publisher_id,
@@ -347,14 +347,14 @@ const StatisticsExport = () => {
         <div className="space-y-2">
           <Label htmlFor="territory">Territorio</Label>
           <Select
-            value={selectedTerritory || ""}
+            value={selectedTerritory}
             onValueChange={setSelectedTerritory}
           >
             <SelectTrigger>
               <SelectValue placeholder="Selecciona un territorio" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
               {territories.map((territory) => (
                 <SelectItem key={territory.id} value={territory.id}>
                   {territory.name}
@@ -366,14 +366,14 @@ const StatisticsExport = () => {
         <div className="space-y-2">
           <Label htmlFor="publisher">Publicador</Label>
           <Select
-            value={selectedPublisher || ""}
+            value={selectedPublisher}
             onValueChange={setSelectedPublisher}
           >
             <SelectTrigger>
               <SelectValue placeholder="Selecciona un publicador" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
               {publishers.map((publisher) => (
                 <SelectItem key={publisher.id} value={publisher.id}>
                   {publisher.name}

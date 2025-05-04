@@ -132,6 +132,8 @@ const EditTerritoryDialog = ({ territory, zones, onUpdate }: EditTerritoryDialog
                       {zone.name}
                     </SelectItem>
                   ))}
+                  {/* Usamos un valor no vacío para el caso sin zona */}
+                  <SelectItem value="no_zone">Sin zona asignada</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -159,6 +161,12 @@ const EditTerritoryDialog = ({ territory, zones, onUpdate }: EditTerritoryDialog
                   <RadioGroupItem value="rojo" id="rojo" />
                   <Label htmlFor="rojo" className="flex items-center gap-1 cursor-pointer">
                     <X className="h-4 w-4 text-red-500" /> Rojo
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="none" id="none" />
+                  <Label htmlFor="none" className="flex items-center gap-1 cursor-pointer">
+                    Sin valor
                   </Label>
                 </div>
               </RadioGroup>
