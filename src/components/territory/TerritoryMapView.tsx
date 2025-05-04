@@ -22,6 +22,7 @@ const TerritoryMapView: React.FC<TerritoryMapViewProps> = ({
     <div className="w-full h-[80vh]">
       <iframe
         src={googleMapsLink}
+        allow="geolocation"
         width="100%"
         height="100%"
         style={{ border: 0 }}
