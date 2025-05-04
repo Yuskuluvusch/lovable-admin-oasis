@@ -116,16 +116,17 @@ const PublicTerritory = () => {
             .neq("token", token);
           
           if (!otherAssignmentsError && otherAssignments && otherAssignments.length > 0) {
-            const validTerritories = otherAssignments
-              .filter(assignment => assignment.territories && typeof assignment.territories !== 'string')
-              .map(assignment => {
-                const territoryData = assignment.territories as { id: string; name: string };
-                return {
-                  id: territoryData.id,
-                  name: territoryData.name,
+            const validTerritories: OtherTerritory[] = [];
+            
+            for (const assignment of otherAssignments) {
+              if (assignment.territories && typeof assignment.territories !== 'string') {
+                validTerritories.push({
+                  id: assignment.territories.id,
+                  name: assignment.territories.name,
                   token: assignment.token
-                };
-              });
+                });
+              }
+            }
             
             setOtherTerritories(validTerritories);
           }

@@ -152,7 +152,7 @@ const StatisticsExport = () => {
         .from("assigned_territories")
         .select(`
           id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
-          publishers:publishers(name)
+          publishers(name)
         `)
         .order("assigned_at", { ascending: false });
       
@@ -283,8 +283,8 @@ const StatisticsExport = () => {
         .from("assigned_territories")
         .select(`
           id, territory_id, publisher_id, assigned_at, expires_at, status, token, returned_at,
-          publishers:publishers(name),
-          territories:territories(name, zone_id),
+          publishers(name),
+          territories(name, zone_id),
           zones:territories(zones(name))
         `)
         .order("assigned_at", { ascending: false });
