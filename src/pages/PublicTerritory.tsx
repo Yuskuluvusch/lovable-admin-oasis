@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -114,11 +113,14 @@ const PublicTerritory = () => {
             .neq("token", token);
           
           if (!otherAssignmentsError && otherAssignments && otherAssignments.length > 0) {
-            const validTerritories = otherAssignments.map(assignment => ({
-              id: assignment.territories.id,
-              name: assignment.territories.name,
-              token: assignment.token
-            }));
+            const validTerritories = otherAssignments.map(assignment => {
+              // Ensure territories is properly accessed as an object
+              return {
+                id: assignment.territories ? assignment.territories.id : '',
+                name: assignment.territories ? assignment.territories.name : '',
+                token: assignment.token
+              };
+            });
             setOtherTerritories(validTerritories);
           }
         }

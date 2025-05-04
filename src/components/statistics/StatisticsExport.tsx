@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Card,
@@ -114,35 +115,36 @@ const fetchAssignmentsForExport = async () => {
       throw error;
     }
     
-    // Transform data type to ensure it matches AssignmentRecord
-    const assignmentRecords: AssignmentRecord[] = data.map(item => ({
-      id: item.id,
-      territory_id: item.territory_id,
-      publisher_id: item.publisher_id,
-      assigned_at: item.assigned_at,
-      expires_at: item.expires_at,
-      status: item.status || "",
-      token: item.token,
-      returned_at: item.returned_at,
-      publisher_name: item.publishers?.name || "Unknown"
-    }));
-    
-    setAllAssignments(assignmentRecords);
-    
-    const currentAssignments = assignmentRecords.filter(
-      (a) => a.status === "assigned" && !a.returned_at
-    );
-    const expiredAssignments = assignmentRecords.filter(
-      (a) =>
-        a.status === "assigned" &&
-        !a.returned_at &&
-        a.expires_at &&
-        new Date(a.expires_at) < new Date()
-    );
-    
-    setCurrentAssignmentsCount(currentAssignments.length);
-    setExpiredAssignmentsCount(expiredAssignments.length);
-    
+    if (data) {
+      // Transform data type to ensure it matches AssignmentRecord
+      const assignmentRecords: AssignmentRecord[] = data.map(item => ({
+        id: item.id,
+        territory_id: item.territory_id,
+        publisher_id: item.publisher_id,
+        assigned_at: item.assigned_at,
+        expires_at: item.expires_at,
+        status: item.status || "",
+        token: item.token,
+        returned_at: item.returned_at,
+        publisher_name: item.publishers?.name || "Unknown"
+      }));
+      
+      setAllAssignments(assignmentRecords);
+      
+      const currentAssignments = assignmentRecords.filter(
+        (a) => a.status === "assigned" && !a.returned_at
+      );
+      const expiredAssignments = assignmentRecords.filter(
+        (a) =>
+          a.status === "assigned" &&
+          !a.returned_at &&
+          a.expires_at &&
+          new Date(a.expires_at) < new Date()
+      );
+      
+      setCurrentAssignmentsCount(currentAssignments.length);
+      setExpiredAssignmentsCount(expiredAssignments.length);
+    }
   } catch (error) {
     console.error("Error fetching assignments for export:", error);
   } finally {
@@ -189,7 +191,7 @@ const fetchAssignmentsForExport = async () => {
 
       toast({
         title: "Exportación completada",
-        description: "El archivo de asignaciones se ha exportado correctamente.",
+        description: "El archivo de asignaciones se ha exportado correctamente."
       });
     } catch (error) {
       console.error("Error exporting territories by assignment:", error);
@@ -197,7 +199,7 @@ const fetchAssignmentsForExport = async () => {
         variant: "destructive",
         title: "Error en la exportación",
         description:
-          "No se pudieron exportar los datos. Inténtalo de nuevo.",
+          "No se pudieron exportar los datos. Inténtalo de nuevo."
       });
     } finally {
       setExporting(false);
@@ -250,44 +252,46 @@ const exportAssignmentHistory = async () => {
       throw error;
     }
     
-    // Transform data type to ensure it matches AssignmentRecord
-    const assignmentRecords: AssignmentRecord[] = data.map(item => ({
-      id: item.id,
-      territory_id: item.territory_id,
-      publisher_id: item.publisher_id,
-      assigned_at: item.assigned_at,
-      expires_at: item.expires_at,
-      status: item.status || "",
-      token: item.token,
-      returned_at: item.returned_at,
-      publisher_name: item.publishers?.name || "Unknown",
-      territory_name: item.territories?.name || "Unknown",
-      zone_name: item.zones?.zones?.name || "Unknown"
-    }));
-    
-    const historyData = formatAssignmentHistoryForExcel(assignmentRecords);
-    
-    const workbook = utils.book_new();
-    const worksheet = utils.json_to_sheet(historyData);
-    
-    utils.book_append_sheet(workbook, worksheet, "Historial de Asignaciones");
-    
-    writeFile(
-      workbook,
-      `historial_territorios_${format(new Date(), "yyyy-MM-dd")}.xlsx`
-    );
-    
-    toast({
-      title: "Exportación completada",
-      description: "El historial de asignaciones se ha exportado correctamente.",
-    });
+    if (data) {
+      // Transform data type to ensure it matches AssignmentRecord
+      const assignmentRecords: AssignmentRecord[] = data.map(item => ({
+        id: item.id,
+        territory_id: item.territory_id,
+        publisher_id: item.publisher_id,
+        assigned_at: item.assigned_at,
+        expires_at: item.expires_at,
+        status: item.status || "",
+        token: item.token,
+        returned_at: item.returned_at,
+        publisher_name: item.publishers?.name || "Unknown",
+        territory_name: item.territories?.name || "Unknown",
+        zone_name: item.zones?.zones?.name || "Unknown"
+      }));
+      
+      const historyData = formatAssignmentHistoryForExcel(assignmentRecords);
+      
+      const workbook = utils.book_new();
+      const worksheet = utils.json_to_sheet(historyData);
+      
+      utils.book_append_sheet(workbook, worksheet, "Historial de Asignaciones");
+      
+      writeFile(
+        workbook,
+        `historial_territorios_${format(new Date(), "yyyy-MM-dd")}.xlsx`
+      );
+      
+      toast({
+        title: "Exportación completada",
+        description: "El historial de asignaciones se ha exportado correctamente."
+      });
+    }
   } catch (error) {
     console.error("Error exporting assignment history:", error);
     toast({
       variant: "destructive",
       title: "Error en la exportación",
       description:
-        "No se pudo exportar el historial de asignaciones. Inténtalo de nuevo.",
+        "No se pudo exportar el historial de asignaciones. Inténtalo de nuevo."
     });
   } finally {
     setExporting(false);
@@ -306,7 +310,6 @@ const exportAssignmentHistory = async () => {
         <div className="space-y-2">
           <Label htmlFor="territory">Territorio</Label>
           <Select
-            id="territory"
             value={selectedTerritory || ""}
             onValueChange={setSelectedTerritory}
           >
@@ -314,7 +317,7 @@ const exportAssignmentHistory = async () => {
               <SelectValue placeholder="Selecciona un territorio" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={null}>Todos</SelectItem>
+              <SelectItem value="">Todos</SelectItem>
               {territories.map((territory) => (
                 <SelectItem key={territory.id} value={territory.id}>
                   {territory.name}
@@ -326,7 +329,6 @@ const exportAssignmentHistory = async () => {
         <div className="space-y-2">
           <Label htmlFor="publisher">Publicador</Label>
           <Select
-            id="publisher"
             value={selectedPublisher || ""}
             onValueChange={setSelectedPublisher}
           >
@@ -334,7 +336,7 @@ const exportAssignmentHistory = async () => {
               <SelectValue placeholder="Selecciona un publicador" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={null}>Todos</SelectItem>
+              <SelectItem value="">Todos</SelectItem>
               {publishers.map((publisher) => (
                 <SelectItem key={publisher.id} value={publisher.id}>
                   {publisher.name}

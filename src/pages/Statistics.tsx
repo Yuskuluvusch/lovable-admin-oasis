@@ -211,7 +211,7 @@ const Statistics = () => {
             />
           </div>
           <div className="w-full sm:w-auto">
-            <StatisticsExport territories={filteredTerritories as any} />
+            <StatisticsExport />
           </div>
         </div>
 
