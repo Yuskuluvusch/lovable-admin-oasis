@@ -1,18 +1,16 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Loader2, Search } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { TerritorySafeData, TerritoryStatistics } from "@/types/territory-types";
 import StatisticsExport from "@/components/statistics/StatisticsExport";
-import { Separator } from "@/components/ui/separator";
 
 const Statistics = () => {
   const [territories, setTerritories] = useState<TerritorySafeData[]>([]);
   const [filteredTerritories, setFilteredTerritories] = useState<TerritorySafeData[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<TerritoryStatistics>({
     total_territories: 0,
@@ -31,17 +29,8 @@ const Statistics = () => {
   }, []);
 
   useEffect(() => {
-    if (searchTerm) {
-      const filtered = territories.filter(
-        (territory) =>
-          territory.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          territory.zone?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredTerritories(filtered);
-    } else {
-      setFilteredTerritories(territories);
-    }
-  }, [searchTerm, territories]);
+    setFilteredTerritories(territories);
+  }, [territories]);
 
   const fetchTerritories = async () => {
     setIsLoading(true);
@@ -199,76 +188,61 @@ const Statistics = () => {
         </Card>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar territorio..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-full"
-            />
-          </div>
-          <div className="w-full sm:w-auto">
-            <StatisticsExport />
-          </div>
-        </div>
+      <div className="w-full">
+        <StatisticsExport />
+      </div>
 
-        <div className="border rounded-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
+      <div className="border rounded-md overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Territorio</TableHead>
+                <TableHead>Zona</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Última Asignación</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
                 <TableRow>
-                  <TableHead>Territorio</TableHead>
-                  <TableHead>Zona</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Última Asignación</TableHead>
+                  <TableCell colSpan={4} className="text-center py-4">
+                    <div className="flex justify-center items-center">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      <span>Cargando territorios...</span>
+                    </div>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-4">
-                      <div className="flex justify-center items-center">
-                        <Loader2 className="h-6 w-6 animate-spin mr-2" />
-                        <span>Cargando territorios...</span>
-                      </div>
+              ) : filteredTerritories.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
+                    No hay territorios registrados.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredTerritories.map((territory) => (
+                  <TableRow
+                    key={territory.id}
+                    className="cursor-pointer hover:bg-muted/60"
+                    onClick={() => handleRowClick(territory.id)}
+                  >
+                    <TableCell className="font-medium">{territory.name}</TableCell>
+                    <TableCell>{territory.zone?.name || "Sin zona"}</TableCell>
+                    <TableCell>
+                      {territory.last_assigned_at
+                        ? "Ha sido asignado"
+                        : "Nunca asignado"}
+                    </TableCell>
+                    <TableCell>
+                      {territory.last_assigned_at
+                        ? new Date(territory.last_assigned_at).toLocaleDateString()
+                        : "N/A"}
                     </TableCell>
                   </TableRow>
-                ) : filteredTerritories.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                      {searchTerm
-                        ? "No se encontraron territorios coincidentes."
-                        : "No hay territorios registrados."}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredTerritories.map((territory) => (
-                    <TableRow
-                      key={territory.id}
-                      className="cursor-pointer hover:bg-muted/60"
-                      onClick={() => handleRowClick(territory.id)}
-                    >
-                      <TableCell className="font-medium">{territory.name}</TableCell>
-                      <TableCell>{territory.zone?.name || "Sin zona"}</TableCell>
-                      <TableCell>
-                        {territory.last_assigned_at
-                          ? "Ha sido asignado"
-                          : "Nunca asignado"}
-                      </TableCell>
-                      <TableCell>
-                        {territory.last_assigned_at
-                          ? new Date(territory.last_assigned_at).toLocaleDateString()
-                          : "N/A"}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>

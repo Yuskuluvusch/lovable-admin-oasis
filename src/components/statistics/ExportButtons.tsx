@@ -19,7 +19,11 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
   return (
     <>
       <CardFooter>
-        <Button onClick={onExportAssignments} disabled={exporting || isLoading}>
+        <Button 
+          onClick={onExportAssignments} 
+          disabled={exporting || isLoading}
+          className="w-full"
+        >
           {exporting ? "Exportando..." : "Exportar Asignaciones"}
         </Button>
       </CardFooter>
@@ -27,7 +31,11 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
         <CardDescription className="mb-4">
           Exporta el historial completo de asignaciones de territorios.
         </CardDescription>
-        <Button onClick={onExportHistory} disabled={exporting || isLoading}>
+        <Button 
+          onClick={onExportHistory} 
+          disabled={exporting || isLoading}
+          className="w-full"
+        >
           {exporting ? "Exportando..." : "Exportar Historial"}
         </Button>
       </CardFooter>
