@@ -1,22 +1,19 @@
 
 import React, { useState } from "react";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { DateRange } from "react-day-picker";
-import { Calendar as CalendarIcon, Search } from "lucide-react";
+import { CalendarIcon, Search, Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Territory {
   id: string;
@@ -51,13 +48,25 @@ const FilterControls: React.FC<FilterControlsProps> = ({
 }) => {
   const [territorySearchOpen, setTerritorySearchOpen] = useState(false);
   const [publisherSearchOpen, setPublisherSearchOpen] = useState(false);
+  const [territorySearchTerm, setTerritorySearchTerm] = useState("");
+  const [publisherSearchTerm, setPublisherSearchTerm] = useState("");
+
+  // Filter territories based on search term
+  const filteredTerritories = territories.filter(territory => 
+    territory.name.toLowerCase().includes(territorySearchTerm.toLowerCase())
+  );
+
+  // Filter publishers based on search term
+  const filteredPublishers = publishers.filter(publisher => 
+    publisher.name.toLowerCase().includes(publisherSearchTerm.toLowerCase())
+  );
 
   return (
     <div className="grid gap-4">
       <div className="space-y-2">
         <Label htmlFor="territory">Territorio</Label>
-        <Popover open={territorySearchOpen} onOpenChange={setTerritorySearchOpen}>
-          <PopoverTrigger asChild>
+        <DropdownMenu open={territorySearchOpen} onOpenChange={setTerritorySearchOpen}>
+          <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
               role="combobox"
@@ -67,45 +76,54 @@ const FilterControls: React.FC<FilterControlsProps> = ({
               {selectedTerritory !== "all"
                 ? territories.find((territory) => territory.id === selectedTerritory)?.name || "Selecciona un territorio"
                 : "Todos los territorios"}
-              <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-full p-0">
-            <Command>
-              <CommandInput placeholder="Buscar territorio..." />
-              <CommandEmpty>No se encontraron resultados.</CommandEmpty>
-              <CommandGroup>
-                <CommandItem
-                  value="all"
-                  onSelect={() => {
-                    setSelectedTerritory("all");
-                    setTerritorySearchOpen(false);
-                  }}
-                >
-                  <span>Todos</span>
-                </CommandItem>
-                {territories.map((territory) => (
-                  <CommandItem
-                    key={territory.id}
-                    value={territory.name}
-                    onSelect={() => {
-                      setSelectedTerritory(territory.id);
-                      setTerritorySearchOpen(false);
-                    }}
-                  >
-                    {territory.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </Command>
-          </PopoverContent>
-        </Popover>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-full" align="start">
+            <div className="p-2">
+              <Input
+                placeholder="Buscar territorio..."
+                value={territorySearchTerm}
+                onChange={(e) => setTerritorySearchTerm(e.target.value)}
+                className="mb-2"
+              />
+            </div>
+            <DropdownMenuItem
+              className="flex items-center justify-between"
+              onSelect={() => {
+                setSelectedTerritory("all");
+                setTerritorySearchOpen(false);
+              }}
+            >
+              <span>Todos</span>
+              {selectedTerritory === "all" && <Check className="h-4 w-4" />}
+            </DropdownMenuItem>
+            {filteredTerritories.map((territory) => (
+              <DropdownMenuItem
+                key={territory.id}
+                className="flex items-center justify-between"
+                onSelect={() => {
+                  setSelectedTerritory(territory.id);
+                  setTerritorySearchOpen(false);
+                }}
+              >
+                <span>{territory.name}</span>
+                {selectedTerritory === territory.id && <Check className="h-4 w-4" />}
+              </DropdownMenuItem>
+            ))}
+            {filteredTerritories.length === 0 && (
+              <div className="text-sm text-muted-foreground p-2">
+                No se encontraron resultados.
+              </div>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="publisher">Publicador</Label>
-        <Popover open={publisherSearchOpen} onOpenChange={setPublisherSearchOpen}>
-          <PopoverTrigger asChild>
+        <DropdownMenu open={publisherSearchOpen} onOpenChange={setPublisherSearchOpen}>
+          <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
               role="combobox"
@@ -115,39 +133,48 @@ const FilterControls: React.FC<FilterControlsProps> = ({
               {selectedPublisher !== "all"
                 ? publishers.find((publisher) => publisher.id === selectedPublisher)?.name || "Selecciona un publicador"
                 : "Todos los publicadores"}
-              <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-full p-0">
-            <Command>
-              <CommandInput placeholder="Buscar publicador..." />
-              <CommandEmpty>No se encontraron resultados.</CommandEmpty>
-              <CommandGroup>
-                <CommandItem
-                  value="all"
-                  onSelect={() => {
-                    setSelectedPublisher("all");
-                    setPublisherSearchOpen(false);
-                  }}
-                >
-                  <span>Todos</span>
-                </CommandItem>
-                {publishers.map((publisher) => (
-                  <CommandItem
-                    key={publisher.id}
-                    value={publisher.name}
-                    onSelect={() => {
-                      setSelectedPublisher(publisher.id);
-                      setPublisherSearchOpen(false);
-                    }}
-                  >
-                    {publisher.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </Command>
-          </PopoverContent>
-        </Popover>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-full" align="start">
+            <div className="p-2">
+              <Input
+                placeholder="Buscar publicador..."
+                value={publisherSearchTerm}
+                onChange={(e) => setPublisherSearchTerm(e.target.value)}
+                className="mb-2"
+              />
+            </div>
+            <DropdownMenuItem
+              className="flex items-center justify-between"
+              onSelect={() => {
+                setSelectedPublisher("all");
+                setPublisherSearchOpen(false);
+              }}
+            >
+              <span>Todos</span>
+              {selectedPublisher === "all" && <Check className="h-4 w-4" />}
+            </DropdownMenuItem>
+            {filteredPublishers.map((publisher) => (
+              <DropdownMenuItem
+                key={publisher.id}
+                className="flex items-center justify-between"
+                onSelect={() => {
+                  setSelectedPublisher(publisher.id);
+                  setPublisherSearchOpen(false);
+                }}
+              >
+                <span>{publisher.name}</span>
+                {selectedPublisher === publisher.id && <Check className="h-4 w-4" />}
+              </DropdownMenuItem>
+            ))}
+            {filteredPublishers.length === 0 && (
+              <div className="text-sm text-muted-foreground p-2">
+                No se encontraron resultados.
+              </div>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="space-y-2">
