@@ -11,6 +11,8 @@ const AdminLayout = () => {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const handleCloseSidebar = () => setSidebarOpen(false);
+
   return (
     <div className="flex min-h-screen">
       {!isMobile ? (
@@ -18,16 +20,16 @@ const AdminLayout = () => {
       ) : (
         <>
           <Button 
-            variant="ghost" 
+            variant="secondary" 
             size="icon" 
-            className="fixed top-4 left-4 z-30"
+            className="fixed top-4 left-4 z-30 bg-slate-800/90 text-white shadow-md"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-6 w-6" />
           </Button>
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetContent side="left" className="p-0 w-64 max-w-[80vw] border-r">
-              <AdminSidebar />
+              <AdminSidebar onLinkClick={handleCloseSidebar} />
             </SheetContent>
           </Sheet>
         </>
