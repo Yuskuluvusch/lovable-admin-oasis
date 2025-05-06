@@ -35,7 +35,7 @@ const AdminLayout = () => {
         </>
       )}
       <main className="flex-1 overflow-y-auto">
-        <div className="container py-8 px-3 sm:px-6">
+        <div className={`container py-8 px-3 sm:px-6 ${isMobile ? 'pt-16' : ''}`}>
           <Outlet />
         </div>
       </main>
