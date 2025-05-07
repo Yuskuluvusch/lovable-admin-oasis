@@ -2,12 +2,16 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { CardDescription, CardFooter } from "@/components/ui/card";
+import { DateRange } from "react-day-picker";
 
 interface ExportButtonsProps {
   onExportAssignments: () => void;
   onExportHistory: () => void;
   isLoading: boolean;
   exporting: boolean;
+  selectedTerritory: string | "all";
+  selectedPublisher: string | "all";
+  dateRange: DateRange | undefined;
 }
 
 const ExportButtons: React.FC<ExportButtonsProps> = ({
@@ -15,6 +19,9 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
   onExportHistory,
   isLoading,
   exporting,
+  selectedTerritory,
+  selectedPublisher,
+  dateRange,
 }) => {
   return (
     <>
@@ -32,7 +39,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
           Exporta el historial completo de asignaciones de territorios.
         </CardDescription>
         <Button 
-          onClick={onExportHistory} 
+          onClick={() => onExportHistory(selectedTerritory, selectedPublisher, dateRange)} 
           disabled={exporting || isLoading}
           className="w-full"
         >

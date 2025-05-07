@@ -75,6 +75,10 @@ const StatisticsExport = () => {
     });
   };
 
+  const handleExportHistory = () => {
+    exportAssignmentHistory(selectedTerritory, selectedPublisher, dateRange);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -99,9 +103,12 @@ const StatisticsExport = () => {
       
       <ExportButtons 
         onExportAssignments={handleExportAssignments}
-        onExportHistory={exportAssignmentHistory}
+        onExportHistory={handleExportHistory}
         isLoading={isLoading}
         exporting={exporting}
+        selectedTerritory={selectedTerritory}
+        selectedPublisher={selectedPublisher}
+        dateRange={dateRange}
       />
       
       <CardContent>
