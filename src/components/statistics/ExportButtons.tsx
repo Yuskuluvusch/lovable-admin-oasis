@@ -3,6 +3,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { CardDescription, CardFooter } from "@/components/ui/card";
 import { DateRange } from "react-day-picker";
+import { Download } from "lucide-react";
 
 interface ExportButtonsProps {
   onExportAssignments: () => void;
@@ -31,7 +32,7 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
           disabled={exporting || isLoading}
           className="w-full"
         >
-          {exporting ? "Exportando..." : "Exportar Asignaciones"}
+          {exporting ? "Exportando..." : "Exportar Asignaciones"} <Download className="ml-2" />
         </Button>
       </CardFooter>
       <CardFooter className="flex-col items-start border-t pt-6">
@@ -39,11 +40,11 @@ const ExportButtons: React.FC<ExportButtonsProps> = ({
           Exporta el historial completo de asignaciones de territorios.
         </CardDescription>
         <Button 
-          onClick={() => onExportHistory(selectedTerritory, selectedPublisher, dateRange)} 
+          onClick={onExportHistory} 
           disabled={exporting || isLoading}
           className="w-full"
         >
-          {exporting ? "Exportando..." : "Exportar Historial"}
+          {exporting ? "Exportando..." : "Exportar Historial"} <Download className="ml-2" />
         </Button>
       </CardFooter>
     </>
