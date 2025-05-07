@@ -49,7 +49,7 @@ const WarningsTooltip: React.FC<WarningsTooltipProps> = ({
   // Alert variant (full alert component)
   if (variant === "alert") {
     return (
-      <Alert className="border-amber-200 bg-amber-50 text-amber-800">
+      <Alert className="border-amber-200 bg-amber-50 text-amber-800 py-2 px-3 text-sm">
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>{warnings}</AlertDescription>
       </Alert>

@@ -22,30 +22,32 @@ const TerritoryInfo: React.FC<TerritoryInfoProps> = ({
 }) => {
   return (
     <div className="mb-4">
-      <div className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between mb-2">
-        <h1 className="text-xl font-semibold">Territorio: {territoryName}</h1>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+        <div className="flex-1">
+          <h1 className="text-xl font-semibold">Territorio: {territoryName}</h1>
+          
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+            <Info className="h-4 w-4" />
+            <span>Asignado a: <span className="font-medium">{publisherName}</span></span>
+          </div>
+          
+          {dangerLevel && (
+            <div className="mt-2">
+              <DangerLevelBadge level={dangerLevel} />
+            </div>
+          )}
+        </div>
         
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Info className="h-4 w-4" />
-          <span>Asignado a: <span className="font-medium">{publisherName}</span></span>
-        </div>
+        {warnings && (
+          <div className="flex-shrink-0 max-w-md">
+            <WarningsTooltip 
+              warnings={warnings} 
+              showAsTooltip={false} 
+              variant="alert" 
+            />
+          </div>
+        )}
       </div>
-      
-      {dangerLevel && (
-        <div className="mb-3">
-          <DangerLevelBadge level={dangerLevel} />
-        </div>
-      )}
-
-      {warnings && (
-        <div className="mb-2">
-          <WarningsTooltip 
-            warnings={warnings} 
-            showAsTooltip={false} 
-            variant="alert" 
-          />
-        </div>
-      )}
     </div>
   );
 };
