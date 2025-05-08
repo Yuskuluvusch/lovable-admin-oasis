@@ -231,7 +231,7 @@ const Dashboard = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="rounded-lg bg-accent p-3">
                   <p className="text-xs font-medium text-muted-foreground">Versión</p>
-                  <p className="text-sm font-medium">1.0.0</p>
+                  <p className="text-sm font-medium">1.0.1</p>
                 </div>
                 <div className="rounded-lg bg-accent p-3">
                   <p className="text-xs font-medium text-muted-foreground">Última Actualización</p>
