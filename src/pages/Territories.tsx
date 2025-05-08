@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -272,7 +273,18 @@ const Territories = () => {
     if (!newTerritory.name.trim()) return;
 
     setIsLoading(true);
-    const { error } = await supabase.from("territories").insert([{ ...newTerritory }]);
+    
+    // Create the territory data object with explicit null handling
+    const territoryData = { 
+      name: newTerritory.name.trim(),
+      zone_id: newTerritory.zone_id ? newTerritory.zone_id : null,
+      google_maps_link: newTerritory.google_maps_link.trim() || null,
+      danger_level: newTerritory.danger_level || null,
+      warnings: newTerritory.warnings.trim() || null
+    };
+    
+    const { error } = await supabase.from("territories").insert([territoryData]);
+    
     if (error) {
       toast.error("Error al crear territorio");
       console.error(error);
@@ -670,6 +682,12 @@ const Territories = () => {
                   <RadioGroupItem value="rojo" id="new-rojo" />
                   <Label htmlFor="new-rojo" className="flex items-center gap-1 cursor-pointer">
                     <X className="h-4 w-4 text-red-500" /> Rojo
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="" id="new-none" />
+                  <Label htmlFor="new-none" className="flex items-center gap-1 cursor-pointer">
+                    Sin valor
                   </Label>
                 </div>
               </RadioGroup>

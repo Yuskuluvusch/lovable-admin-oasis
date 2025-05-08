@@ -58,7 +58,7 @@ const EditTerritoryDialog = ({ territory, zones, onUpdate }: EditTerritoryDialog
       .from("territories")
       .update({
         name: formData.name.trim(),
-        zone_id: formData.zone_id || null,
+        zone_id: formData.zone_id === "no_zone" ? null : (formData.zone_id || null),
         google_maps_link: formData.google_maps_link.trim() || null,
         danger_level: formData.danger_level || null,
         warnings: formData.warnings.trim() || null,
@@ -164,7 +164,7 @@ const EditTerritoryDialog = ({ territory, zones, onUpdate }: EditTerritoryDialog
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="none" id="none" />
+                  <RadioGroupItem value="" id="none" />
                   <Label htmlFor="none" className="flex items-center gap-1 cursor-pointer">
                     Sin valor
                   </Label>
