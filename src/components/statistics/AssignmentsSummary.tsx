@@ -14,12 +14,14 @@ interface AssignmentsSummaryProps {
   totalAssignments: number;
   currentAssignments: number;
   expiredAssignments: number;
+  pendingReturnAssignments: number;
 }
 
 const AssignmentsSummary: React.FC<AssignmentsSummaryProps> = ({
   totalAssignments,
   currentAssignments,
   expiredAssignments,
+  pendingReturnAssignments,
 }) => {
   return (
     <div>
@@ -33,6 +35,7 @@ const AssignmentsSummary: React.FC<AssignmentsSummaryProps> = ({
             <TableHead className="w-[100px]">Total de Asignaciones</TableHead>
             <TableHead>Asignaciones Activas</TableHead>
             <TableHead>Asignaciones Expiradas</TableHead>
+            <TableHead>Pendientes de Devolución</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -40,6 +43,7 @@ const AssignmentsSummary: React.FC<AssignmentsSummaryProps> = ({
             <TableCell>{totalAssignments}</TableCell>
             <TableCell>{currentAssignments}</TableCell>
             <TableCell>{expiredAssignments}</TableCell>
+            <TableCell>{pendingReturnAssignments}</TableCell>
           </TableRow>
         </TableBody>
       </Table>

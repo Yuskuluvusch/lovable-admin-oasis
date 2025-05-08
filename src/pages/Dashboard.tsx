@@ -52,27 +52,41 @@ const Dashboard = () => {
           return;
         }
 
-        // Get count of assigned territories
-        const { count: assignedTerritories, error: assignedError } = await supabase
+        // Get all assignments
+        const { data: assignments, error: assignmentsError } = await supabase
           .from("assigned_territories")
-          .select("*", { count: "exact" })
-          .eq("status", "assigned");
+          .select("territory_id, status, expires_at, returned_at");
         
-        if (assignedError) {
-          console.error("Error fetching assigned territories:", assignedError);
+        if (assignmentsError) {
+          console.error("Error fetching assignments:", assignmentsError);
           return;
         }
+
+        // Count assigned and expired territories
+        const now = new Date();
+        const assignedTerritories = assignments?.filter(a => 
+          a.status === "assigned" && 
+          !a.returned_at && 
+          (!a.expires_at || new Date(a.expires_at) >= now)
+        ).length || 0;
+        
+        const expiredTerritories = assignments?.filter(a => 
+          a.status === "assigned" && 
+          !a.returned_at && 
+          a.expires_at && 
+          new Date(a.expires_at) < now
+        ).length || 0;
 
         setAdminCount(adminCount || 0);
         setTerritoryStats({
           total_territories: totalTerritories || 0,
-          assigned_territories: assignedTerritories || 0,
-          available_territories: (totalTerritories || 0) - (assignedTerritories || 0),
-          expired_territories: 0,
+          assigned_territories: assignedTerritories,
+          available_territories: (totalTerritories || 0) - (assignedTerritories + expiredTerritories),
+          expired_territories: expiredTerritories,
           territories_by_zone: [],
           total: totalTerritories || 0,
-          assigned: assignedTerritories || 0,
-          available: (totalTerritories || 0) - (assignedTerritories || 0)
+          assigned: assignedTerritories,
+          available: (totalTerritories || 0) - (assignedTerritories + expiredTerritories)
         });
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -93,7 +107,7 @@ const Dashboard = () => {
         </p>
       </div>
 
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-5">
         <Card className="office-shadow">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -144,6 +158,24 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="text-2xl font-bold">{territoryStats.assigned}</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="office-shadow">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Territorios Expirados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span className="text-sm">Cargando...</span>
+              </div>
+            ) : (
+              <div className="text-2xl font-bold text-red-600">{territoryStats.expired_territories}</div>
             )}
           </CardContent>
         </Card>

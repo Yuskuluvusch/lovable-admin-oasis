@@ -33,7 +33,7 @@ const StatisticsExport = () => {
   const [selectedPublisher, setSelectedPublisher] = useState<string | "all">("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   
-  const { allAssignments, currentAssignmentsCount, expiredAssignmentsCount, isLoading } = useAssignments();
+  const { allAssignments, currentAssignmentsCount, expiredAssignmentsCount, pendingReturnAssignmentsCount, isLoading } = useAssignments();
   const { exportTerritoriesByAssignment, exportAssignmentHistory, exporting } = useTerritoryExport();
 
   useEffect(() => {
@@ -116,6 +116,7 @@ const StatisticsExport = () => {
           totalAssignments={allAssignments.length}
           currentAssignments={currentAssignmentsCount}
           expiredAssignments={expiredAssignmentsCount}
+          pendingReturnAssignments={pendingReturnAssignmentsCount}
         />
       </CardContent>
     </Card>

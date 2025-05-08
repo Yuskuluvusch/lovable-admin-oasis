@@ -56,6 +56,8 @@ export interface TerritorySafeData {
   created_at?: string;
   updated_at?: string;
   zone_id?: string;
+  status?: string;
+  expires_at?: string | null;
 }
 
 export interface TerritoryStatistics {
