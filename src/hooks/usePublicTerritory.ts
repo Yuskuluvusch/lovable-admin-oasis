@@ -44,11 +44,20 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
 
   const fetchTerritoryByToken = async (token: string) => {
     try {
-      // Configurar token para consultas con RLS
-      const supabaseWithToken = supabase.rpc('set_claim', { claim: 'token', value: token });
+      // Configure token for RLS queries by calling our edge function first
+      const { data: claimData, error: claimError } = await supabase.functions.invoke('set-claim', {
+        body: { claim: 'token', value: token }
+      });
       
+      if (claimError) {
+        console.error("Error setting claim:", claimError);
+        setError("Error al configurar el acceso al territorio.");
+        setLoading(false);
+        return;
+      }
+
       // Fetch the assignment with the given token
-      const { data: assignmentData, error: assignmentError } = await supabaseWithToken
+      const { data: assignmentData, error: assignmentError } = await supabase
         .from("assigned_territories")
         .select("id, territory_id, publisher_id, expires_at, status, token, returned_at")
         .eq("token", token)
@@ -62,13 +71,13 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
       }
 
       // Then fetch the territory and publisher details separately
-      const territoryPromise = supabaseWithToken
+      const territoryPromise = supabase
         .from("territories")
         .select("name, google_maps_link, danger_level, warnings")
         .eq("id", assignmentData.territory_id)
         .maybeSingle();
         
-      const publisherPromise = supabaseWithToken
+      const publisherPromise = supabase
         .from("publishers")
         .select("name")
         .eq("id", assignmentData.publisher_id)
@@ -76,7 +85,7 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
         
       const [territoryResult, publisherResult] = await Promise.all([
         territoryPromise, 
-        publisherPromise
+        publisherResult
       ]);
 
       if (territoryResult.error || !territoryResult.data) {
@@ -125,10 +134,12 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
 
   const fetchOtherTerritories = async (publisherId: string, currentToken: string) => {
     try {
-      // Configurar token para consultas con RLS
-      const supabaseWithToken = supabase.rpc('set_claim', { claim: 'token', value: currentToken });
+      // Configure token for RLS queries by calling our edge function first
+      await supabase.functions.invoke('set-claim', {
+        body: { claim: 'token', value: currentToken }
+      });
       
-      const { data: otherAssignmentsData, error: otherAssignmentsError } = await supabaseWithToken
+      const { data: otherAssignmentsData, error: otherAssignmentsError } = await supabase
         .from("assigned_territories")
         .select(`
           id, token, territory_id
@@ -148,7 +159,7 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
         const territoryIds = otherAssignmentsData.map(assignment => assignment.territory_id);
         
         // Fetch territory details for these assignments
-        const { data: territoriesData, error: territoriesError } = await supabaseWithToken
+        const { data: territoriesData, error: territoriesError } = await supabase
           .from("territories")
           .select("id, name")
           .in("id", territoryIds);
