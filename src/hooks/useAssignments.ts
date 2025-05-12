@@ -2,8 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AssignmentRecord } from "@/types/territory-types";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AssignmentsData {
   allAssignments: AssignmentRecord[];
@@ -15,6 +14,7 @@ interface AssignmentsData {
 }
 
 export function useAssignments(): AssignmentsData {
+  const { currentUser } = useAuth();
   const [allAssignments, setAllAssignments] = useState<AssignmentRecord[]>([]);
   const [currentAssignmentsCount, setCurrentAssignmentsCount] = useState<number>(0);
   const [expiredAssignmentsCount, setExpiredAssignmentsCount] = useState<number>(0);
@@ -23,8 +23,10 @@ export function useAssignments(): AssignmentsData {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchAssignmentsForExport();
-  }, []);
+    if (currentUser) {
+      fetchAssignmentsForExport();
+    }
+  }, [currentUser]);
 
   const fetchAssignmentsForExport = async () => {
     setIsLoading(true);

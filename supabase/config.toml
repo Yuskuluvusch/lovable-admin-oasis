@@ -3,3 +3,6 @@ project_id = "otqllxpscbiugpfhbbbt"
 
 [functions.auto-return-expired-territories]
 verify_jwt = true
+
+[functions.set-claim]
+verify_jwt = false

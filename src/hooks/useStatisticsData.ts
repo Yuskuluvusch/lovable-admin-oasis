@@ -2,8 +2,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TerritorySafeData, TerritoryStatistics } from "@/types/territory-types";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function useStatisticsData() {
+  const { currentUser } = useAuth();
   const [territories, setTerritories] = useState<TerritorySafeData[]>([]);
   const [filteredTerritories, setFilteredTerritories] = useState<TerritorySafeData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,8 +21,10 @@ export function useStatisticsData() {
   });
 
   useEffect(() => {
-    fetchTerritories();
-  }, []);
+    if (currentUser) {
+      fetchTerritories();
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     setFilteredTerritories(territories);

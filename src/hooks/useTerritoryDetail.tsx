@@ -2,18 +2,20 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Territory, TerritoryHistory } from "@/types/territory-types";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function useTerritoryDetail(territoryId: string | undefined) {
+  const { currentUser } = useAuth();
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [history, setHistory] = useState<TerritoryHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (territoryId) {
+    if (territoryId && currentUser) {
       fetchTerritoryDetails(territoryId);
       fetchTerritoryHistory(territoryId);
     }
-  }, [territoryId]);
+  }, [territoryId, currentUser]);
 
   const fetchTerritoryDetails = async (territoryId: string) => {
     try {
@@ -24,7 +26,7 @@ export function useTerritoryDetail(territoryId: string | undefined) {
           zone:zones(id, name)
         `)
         .eq("id", territoryId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error fetching territory details:", error);
