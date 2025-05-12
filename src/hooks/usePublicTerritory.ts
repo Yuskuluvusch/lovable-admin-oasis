@@ -85,7 +85,7 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
         
       const [territoryResult, publisherResult] = await Promise.all([
         territoryPromise, 
-        publisherResult
+        publisherPromise
       ]);
 
       if (territoryResult.error || !territoryResult.data) {
