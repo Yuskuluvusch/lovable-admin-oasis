@@ -128,6 +128,69 @@ export type Database = {
           },
         ]
       }
+      public_territory_access: {
+        Row: {
+          created_at: string
+          danger_level: string | null
+          expires_at: string | null
+          google_maps_link: string | null
+          id: string
+          is_expired: boolean | null
+          publisher_id: string
+          publisher_name: string
+          territory_id: string
+          territory_name: string
+          token: string
+          updated_at: string
+          warnings: string | null
+        }
+        Insert: {
+          created_at?: string
+          danger_level?: string | null
+          expires_at?: string | null
+          google_maps_link?: string | null
+          id?: string
+          is_expired?: boolean | null
+          publisher_id: string
+          publisher_name: string
+          territory_id: string
+          territory_name: string
+          token?: string
+          updated_at?: string
+          warnings?: string | null
+        }
+        Update: {
+          created_at?: string
+          danger_level?: string | null
+          expires_at?: string | null
+          google_maps_link?: string | null
+          id?: string
+          is_expired?: boolean | null
+          publisher_id?: string
+          publisher_name?: string
+          territory_id?: string
+          territory_name?: string
+          token?: string
+          updated_at?: string
+          warnings?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_territory_access_publisher_id_fkey"
+            columns: ["publisher_id"]
+            isOneToOne: false
+            referencedRelation: "publishers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_territory_access_territory_id_fkey"
+            columns: ["territory_id"]
+            isOneToOne: false
+            referencedRelation: "territories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       publisher_roles: {
         Row: {
           created_at: string

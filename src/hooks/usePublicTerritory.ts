@@ -44,84 +44,40 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
 
   const fetchTerritoryByToken = async (token: string) => {
     try {
-      // Configure token for RLS queries by calling our edge function first
-      const { data: claimData, error: claimError } = await supabase.functions.invoke('set-claim', {
-        body: { claim: 'token', value: token }
-      });
-      
-      if (claimError) {
-        console.error("Error setting claim:", claimError);
-        setError("Error al configurar el acceso al territorio.");
-        setLoading(false);
-        return;
-      }
-
-      // Fetch the assignment with the given token
-      const { data: assignmentData, error: assignmentError } = await supabase
-        .from("assigned_territories")
-        .select("id, territory_id, publisher_id, expires_at, status, token, returned_at")
+      // Consultar directamente la tabla public_territory_access
+      const { data: accessData, error: accessError } = await supabase
+        .from("public_territory_access")
+        .select("*")
         .eq("token", token)
         .maybeSingle();
 
-      if (assignmentError || !assignmentData) {
-        console.error("Error fetching assignment data:", assignmentError);
-        setError("Territorio no encontrado o enlace inválido.");
-        setLoading(false);
-        return;
-      }
-
-      // Then fetch the territory and publisher details separately
-      const territoryPromise = supabase
-        .from("territories")
-        .select("name, google_maps_link, danger_level, warnings")
-        .eq("id", assignmentData.territory_id)
-        .maybeSingle();
-        
-      const publisherPromise = supabase
-        .from("publishers")
-        .select("name")
-        .eq("id", assignmentData.publisher_id)
-        .maybeSingle();
-        
-      const [territoryResult, publisherResult] = await Promise.all([
-        territoryPromise, 
-        publisherPromise
-      ]);
-
-      if (territoryResult.error || !territoryResult.data) {
-        console.error("Error fetching territory:", territoryResult.error);
+      if (accessError) {
+        console.error("Error fetching territory access data:", accessError);
         setError("Error al cargar datos del territorio");
         setLoading(false);
         return;
       }
 
-      if (publisherResult.error || !publisherResult.data) {
-        console.error("Error fetching publisher:", publisherResult.error);
-        setError("Error al cargar datos del publicador");
+      if (!accessData) {
+        setError("Territorio no encontrado o enlace inválido.");
         setLoading(false);
         return;
       }
 
-      const isExpired =
-        !assignmentData.expires_at ||
-        new Date(assignmentData.expires_at) < new Date() ||
-        assignmentData.status !== "assigned" ||
-        assignmentData.returned_at !== null;
-
       setTerritoryData({
-        territory_name: territoryResult.data.name,
-        google_maps_link: territoryResult.data.google_maps_link,
-        danger_level: territoryResult.data.danger_level,
-        warnings: territoryResult.data.warnings,
-        expires_at: assignmentData.expires_at,
-        publisher_name: publisherResult.data.name,
-        publisher_id: assignmentData.publisher_id,
-        is_expired: isExpired,
+        territory_name: accessData.territory_name,
+        google_maps_link: accessData.google_maps_link,
+        danger_level: accessData.danger_level,
+        warnings: accessData.warnings,
+        expires_at: accessData.expires_at,
+        publisher_name: accessData.publisher_name,
+        publisher_id: accessData.publisher_id,
+        is_expired: accessData.is_expired,
       });
 
-      // If the territory is expired, check for other active territories for this publisher
-      if (isExpired) {
-        await fetchOtherTerritories(assignmentData.publisher_id, token);
+      // Si el territorio está expirado, buscar otros territorios activos para este publicador
+      if (accessData.is_expired) {
+        await fetchOtherTerritories(accessData.publisher_id, token);
       }
 
       setLoading(false);
@@ -134,52 +90,26 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
 
   const fetchOtherTerritories = async (publisherId: string, currentToken: string) => {
     try {
-      // Configure token for RLS queries by calling our edge function first
-      await supabase.functions.invoke('set-claim', {
-        body: { claim: 'token', value: currentToken }
-      });
-      
-      const { data: otherAssignmentsData, error: otherAssignmentsError } = await supabase
-        .from("assigned_territories")
-        .select(`
-          id, token, territory_id
-        `)
+      // Consultar directamente la tabla public_territory_access para otros territorios
+      const { data: otherAccessData, error: otherAccessError } = await supabase
+        .from("public_territory_access")
+        .select("territory_id, territory_name, token")
         .eq("publisher_id", publisherId)
-        .eq("status", "assigned")
-        .is("returned_at", null)
-        .gt("expires_at", new Date().toISOString())
+        .eq("is_expired", false)
         .neq("token", currentToken);
       
-      if (otherAssignmentsError || !otherAssignmentsData) {
-        console.error("Error fetching other assignments:", otherAssignmentsError);
+      if (otherAccessError || !otherAccessData) {
+        console.error("Error fetching other territories:", otherAccessError);
         return;
       }
       
-      if (otherAssignmentsData.length > 0) {
-        const territoryIds = otherAssignmentsData.map(assignment => assignment.territory_id);
-        
-        // Fetch territory details for these assignments
-        const { data: territoriesData, error: territoriesError } = await supabase
-          .from("territories")
-          .select("id, name")
-          .in("id", territoryIds);
-        
-        if (territoriesError || !territoriesData) {
-          console.error("Error fetching territories:", territoriesError);
-          return;
-        }
-        
-        const validTerritories: OtherTerritory[] = otherAssignmentsData.map(assignment => {
-          const territoryData = territoriesData.find(t => t.id === assignment.territory_id);
-          return {
-            id: assignment.territory_id,
-            name: territoryData ? territoryData.name : "Territorio desconocido",
-            token: assignment.token
-          };
-        });
-        
-        setOtherTerritories(validTerritories);
-      }
+      const validTerritories: OtherTerritory[] = otherAccessData.map(item => ({
+        id: item.territory_id,
+        name: item.territory_name,
+        token: item.token
+      }));
+      
+      setOtherTerritories(validTerritories);
     } catch (error) {
       console.error("Error fetching other territories:", error);
     }
