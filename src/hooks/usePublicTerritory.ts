@@ -29,6 +29,7 @@ interface PublicTerritoryData {
 }
 
 export function usePublicTerritory(token: string | undefined): PublicTerritoryData {
+  const { isAuthenticated } = useAuth(); // Usar el hook de autenticación  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [territoryData, setTerritoryData] = useState<TerritoryData | null>(null);
