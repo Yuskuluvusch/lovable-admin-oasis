@@ -45,30 +45,35 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
     fetchTerritoryByToken(token);
   }, [token]);
 
-  const fetchTerritoryByToken = async (token: string) => {
-    try {
-      const client = isAuthenticated ? adminAuthClient : supabase;  
-      const { data: { session } } = await supabase.auth.getSession();  
-      const isAuthenticated = !!session;  
-      // Consultar directamente la tabla public_territory_access
-      const { data: accessData, error: accessError } = await supabase
-        .from("public_territory_access")
-        .select("*")
-        .eq("token", token)
-        .maybeSingle();
-
-      if (accessError) {
-        console.error("Error fetching territory access data:", accessError);
-        setError("Error al cargar datos del territorio");
-        setLoading(false);
-        return;
-      }
-
-      if (!accessData) {
-        setError("Territorio no encontrado o enlace inválido.");
-        setLoading(false);
-        return;
-      }
+  const fetchTerritoryByToken = async (token: string) => {  
+  try {  
+    // Verificar si el usuario está autenticado  
+    const { data: { session } } = await supabase.auth.getSession();  
+    const isAuthenticated = !!session;  
+      
+    // Usar el cliente adecuado según el estado de autenticación  
+    const client = isAuthenticated ? adminAuthClient : supabase;  
+      
+    // Consultar la tabla public_territory_access  
+    const { data: accessData, error: accessError } = await client  
+      .from("public_territory_access")  
+      .select("*")  
+      .eq("token", token)  
+      .maybeSingle();  
+      
+    // Manejar errores de forma más detallada  
+    if (accessError) {  
+      console.error("Error específico de Supabase:", accessError);  
+      setError(`Error al cargar datos del territorio: ${accessError.message}`);  
+      setLoading(false);  
+      return;  
+    }  
+      
+    if (!accessData) {  
+      setError("Territorio no encontrado o enlace inválido.");  
+      setLoading(false);  
+      return;  
+    }  
 
       setTerritoryData({
         territory_name: accessData.territory_name,
