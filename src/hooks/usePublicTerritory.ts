@@ -99,32 +99,40 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
     }
   };
 
-  const fetchOtherTerritories = async (publisherId: string, currentToken: string) => {
-    try {
-      // Consultar directamente la tabla public_territory_access para otros territorios
-      const { data: otherAccessData, error: otherAccessError } = await supabase
-        .from("public_territory_access")
-        .select("territory_id, territory_name, token")
-        .eq("publisher_id", publisherId)
-        .eq("is_expired", false)
-        .neq("token", currentToken);
+  const fetchOtherTerritories = async (publisherId: string, currentToken: string) => {  
+  try {  
+    // Verificar si el usuario está autenticado (igual que en fetchTerritoryByToken)  
+    const { data: { session } } = await supabase.auth.getSession();  
+    const isAuthenticated = !!session;  
       
-      if (otherAccessError || !otherAccessData) {
-        console.error("Error fetching other territories:", otherAccessError);
-        return;
-      }
+    // Usar el cliente adecuado según el estado de autenticación  
+    const client = isAuthenticated ? adminAuthClient : supabase;  
       
-      const validTerritories: OtherTerritory[] = otherAccessData.map(item => ({
-        id: item.territory_id,
-        name: item.territory_name,
-        token: item.token
-      }));
+    // Consultar directamente la tabla public_territory_access para otros territorios  
+    const { data: otherAccessData, error: otherAccessError } = await client  
+      .from("public_territory_access")  
+      .select("territory_id, territory_name, token")  
+      .eq("publisher_id", publisherId)  
+      .eq("is_expired", false)  
+      .neq("token", currentToken);  
       
-      setOtherTerritories(validTerritories);
-    } catch (error) {
-      console.error("Error fetching other territories:", error);
-    }
-  };
+    if (otherAccessError || !otherAccessData) {  
+      console.error("Error fetching other territories:", otherAccessError);  
+      return;  
+    }  
+      
+    const validTerritories = otherAccessData.map(item => ({  
+      id: item.territory_id,  
+      name: item.territory_name,  
+      token: item.token  
+    }));  
+      
+    setOtherTerritories(validTerritories);  
+  } catch (error) {  
+    console.error("Error fetching other territories:", error);  
+  }  
+};
+
 
   return {
     loading,
