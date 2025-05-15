@@ -47,6 +47,7 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
 
   const fetchTerritoryByToken = async (token: string) => {
     try {
+      const client = isAuthenticated ? adminAuthClient : supabase;  
       // Consultar directamente la tabla public_territory_access
       const { data: accessData, error: accessError } = await supabase
         .from("public_territory_access")
