@@ -1,6 +1,8 @@
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, adminAuthClient } from "@/integrations/supabase/client";  
+import { useAuth } from "@/contexts/AuthContext"; // Ruta de importación correcta
+
 
 interface TerritoryData {
   territory_name: string;
