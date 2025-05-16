@@ -46,34 +46,34 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
   }, [token]);
 
   const fetchTerritoryByToken = async (token: string) => {  
-  try {  
-    // Verificar si el usuario está autenticado  
-    const { data: { session } } = await supabase.auth.getSession();  
-    const isAuthenticated = !!session;  
-      
-    // Usar el cliente adecuado según el estado de autenticación  
-    const client = isAuthenticated ? adminAuthClient : supabase;  
-      
-    // Consultar la tabla public_territory_access  
-    const { data: accessData, error: accessError } = await client  
-      .from("public_territory_access")  
-      .select("*")  
-      .eq("token", token)  
-      .maybeSingle();  
-      
-    // Manejar errores de forma más detallada  
-    if (accessError) {  
-      console.error("Error específico de Supabase:", accessError);  
-      setError(`Error al cargar datos del territorio: ${accessError.message}`);  
-      setLoading(false);  
-      return;  
-    }  
-      
-    if (!accessData) {  
-      setError("Territorio no encontrado o enlace inválido.");  
-      setLoading(false);  
-      return;  
-    }  
+    try {  
+      // Verificar la sesión a través de Supabase directamente
+      const { data: { session } } = await supabase.auth.getSession();  
+      const userAuthenticated = !!session;  
+        
+      // Usar el cliente adecuado según el estado de autenticación  
+      const client = userAuthenticated ? adminAuthClient : supabase;  
+        
+      // Consultar la tabla public_territory_access  
+      const { data: accessData, error: accessError } = await client  
+        .from("public_territory_access")  
+        .select("*")  
+        .eq("token", token)  
+        .maybeSingle();  
+        
+      // Manejar errores de forma más detallada  
+      if (accessError) {  
+        console.error("Error específico de Supabase:", accessError);  
+        setError(`Error al cargar datos del territorio: ${accessError.message}`);  
+        setLoading(false);  
+        return;  
+      }  
+        
+      if (!accessData) {  
+        setError("Territorio no encontrado o enlace inválido.");  
+        setLoading(false);  
+        return;  
+      }  
 
       setTerritoryData({
         territory_name: accessData.territory_name,
@@ -100,38 +100,38 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
   };
 
   const fetchOtherTerritories = async (publisherId: string, currentToken: string) => {  
-  try {  
-    // Verificar si el usuario está autenticado (igual que en fetchTerritoryByToken)  
-    const { data: { session } } = await supabase.auth.getSession();  
-    const isAuthenticated = !!session;  
-      
-    // Usar el cliente adecuado según el estado de autenticación  
-    const client = isAuthenticated ? adminAuthClient : supabase;  
-      
-    // Consultar directamente la tabla public_territory_access para otros territorios  
-    const { data: otherAccessData, error: otherAccessError } = await client  
-      .from("public_territory_access")  
-      .select("territory_id, territory_name, token")  
-      .eq("publisher_id", publisherId)  
-      .eq("is_expired", false)  
-      .neq("token", currentToken);  
-      
-    if (otherAccessError || !otherAccessData) {  
-      console.error("Error fetching other territories:", otherAccessError);  
-      return;  
+    try {  
+      // Verificar la sesión a través de Supabase directamente
+      const { data: { session } } = await supabase.auth.getSession();  
+      const userAuthenticated = !!session;  
+        
+      // Usar el cliente adecuado según el estado de autenticación  
+      const client = userAuthenticated ? adminAuthClient : supabase;  
+        
+      // Consultar directamente la tabla public_territory_access para otros territorios  
+      const { data: otherAccessData, error: otherAccessError } = await client  
+        .from("public_territory_access")  
+        .select("territory_id, territory_name, token")  
+        .eq("publisher_id", publisherId)  
+        .eq("is_expired", false)  
+        .neq("token", currentToken);  
+        
+      if (otherAccessError || !otherAccessData) {  
+        console.error("Error fetching other territories:", otherAccessError);  
+        return;  
+      }  
+        
+      const validTerritories = otherAccessData.map(item => ({  
+        id: item.territory_id,  
+        name: item.territory_name,  
+        token: item.token  
+      }));  
+        
+      setOtherTerritories(validTerritories);  
+    } catch (error) {  
+      console.error("Error fetching other territories:", error);  
     }  
-      
-    const validTerritories = otherAccessData.map(item => ({  
-      id: item.territory_id,  
-      name: item.territory_name,  
-      token: item.token  
-    }));  
-      
-    setOtherTerritories(validTerritories);  
-  } catch (error) {  
-    console.error("Error fetching other territories:", error);  
-  }  
-};
+  };
 
 
   return {
