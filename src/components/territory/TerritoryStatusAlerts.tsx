@@ -14,7 +14,11 @@ const TerritoryStatusAlerts: React.FC<TerritoryStatusAlertsProps> = ({
   expiryDate,
   daysRemaining
 }) => {
-  if (isExpired) {
+  // Calculate if territory is truly expired based on date
+  const isDateExpired = expiryDate ? new Date(expiryDate) < new Date() : false;
+  const isTrulyExpired = isExpired || isDateExpired;
+  
+  if (isTrulyExpired) {
     return (
       <Alert variant="destructive" className="mb-4">
         <AlertTriangle className="h-4 w-4" />

@@ -75,6 +75,10 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
         return;  
       }  
 
+      // Calculate if territory is truly expired
+      const isDateExpired = accessData.expires_at ? new Date(accessData.expires_at) < new Date() : false;
+      const isTrulyExpired = accessData.is_expired || isDateExpired;
+      
       setTerritoryData({
         territory_name: accessData.territory_name,
         google_maps_link: accessData.google_maps_link,
@@ -83,11 +87,11 @@ export function usePublicTerritory(token: string | undefined): PublicTerritoryDa
         expires_at: accessData.expires_at,
         publisher_name: accessData.publisher_name,
         publisher_id: accessData.publisher_id,
-        is_expired: accessData.is_expired,
+        is_expired: isTrulyExpired,
       });
 
       // Si el territorio está expirado, buscar otros territorios activos para este publicador
-      if (accessData.is_expired) {
+      if (isTrulyExpired) {
         await fetchOtherTerritories(accessData.publisher_id, token);
       }
 
