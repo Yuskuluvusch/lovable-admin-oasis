@@ -71,14 +71,6 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // Log successful auto-returns for auditing
-    const autoReturnLogs = expiredTerritories.map(territory => ({
-      territory_id: territory.id,
-      action: 'auto-return',
-      performed_at: now,
-      details: 'Territory auto-returned after being expired for more than 5 days'
-    }));
-
     console.log(`Successfully auto-returned ${expiredTerritories.length} territories`);
 
     return new Response(JSON.stringify({ 
